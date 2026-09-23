@@ -421,6 +421,13 @@ export default {
   'Every set logged as “{0}” becomes {1}. The next import of that name follows.': '"{0}" के रूप में दर्ज हर सेट {1} बन जाता है। उस नाम का अगला आयात उसी पर जाएगा।',
   'Match': 'मिलाएँ',
   'Matched to {0}': '{0} से मिलाया गया',
+  'Bar': 'बार',
+  'The plates below are for each side of this bar.': 'नीचे की प्लेटें इस बार के हर तरफ की हैं।',
+  '{0} bar · {1} each side': '{0} बार · हर तरफ {1}',
+  '{0} bar · empty': '{0} बार · खाली',
+  'Under a {0} bar': '{0} बार से कम',
+  '{0} left over': '{0} बचा',
+  'Note for this exercise': 'इस एक्सरसाइज़ के लिए नोट',
   // --- mobile build ---
   'Your data': 'आपका डेटा',
   'All data stays on this phone': 'सारा डेटा इसी फ़ोन पर रहता है',

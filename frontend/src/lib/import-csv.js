@@ -79,7 +79,7 @@ const COLUMNS = [
   ['seconds', ['seconds', 'duration seconds']],
   ['time', ['time', 'duration']],
   ['setType', ['set type']],
-  ['note', ['comment', 'comments', 'notes', 'note']],
+  ['note', ['comment', 'comments', 'notes', 'note', 'exercise notes', 'exercise note']],
 ]
 
 function mapHeader(header) {
@@ -416,7 +416,7 @@ export function parseWorkoutCSV(text, { unit = 'kg', aliases = {} } = {}) {
 
     let day = byDate.get(when.d)
     if (!day) {
-      day = { ex: new Map(), name: cell(r, 'workoutName') || '', start: when.t, end: null }
+      day = { ex: new Map(), notes: new Map(), name: cell(r, 'workoutName') || '', start: when.t, end: null }
       byDate.set(when.d, day)
     }
     if (!day.name) day.name = cell(r, 'workoutName') || ''
@@ -424,6 +424,14 @@ export function parseWorkoutCSV(text, { unit = 'kg', aliases = {} } = {}) {
     else if (map.time !== undefined && !map.seconds && reps) { /* FitNotes' Time is per-set */ }
     if (!day.ex.has(id)) day.ex.set(id, [])
     day.ex.get(id).push(set)
+    // One note per exercise per day. The same cue repeated on every set stays once;
+    // a later set that says something else is kept on its own line.
+    const note = cell(r, 'note')
+    if (note) {
+      const prev = day.notes.get(id)
+      if (!prev) day.notes.set(id, note)
+      else if (!prev.split('\n').includes(note)) day.notes.set(id, prev + '\n' + note)
+    }
     sets++
   }
 
@@ -451,7 +459,8 @@ export function parseWorkoutCSV(text, { unit = 'kg', aliases = {} } = {}) {
     const entries = [...day.ex.entries()].map(([id, ss]) => {
       const conv2 = ss.map(({ u, ...s }) => (s.w !== undefined ? { ...s, w: convRow({ ...s, u }) } : s))
       const mx = Math.max(0, ...conv2.map(s => s.w || 0))
-      return { id, sets: conv2, topW: mx || null }
+      const note = (day.notes.get(id) || '').trim()
+      return { id, sets: conv2, topW: mx || null, ...(note ? { note } : {}) }
     })
     const base = new Date(d + 'T00:00:00').getTime()
     const start = base + (day.start ?? 18 * 3600000)
@@ -589,6 +598,14 @@ export function mergeImport(S, parsed) {
         const cur = S.exWeights[e.id]
         if (!cur || w.d >= cur.d) S.exWeights[e.id] = { w: mx, d: w.d }
       }
+      // The note you will see on the next session is the newest one in the file.
+      // A day you already logged is left alone, so a re-import cannot overwrite a cue
+      // you have edited since.
+      if (e.note) {
+        S.exNotes = S.exNotes || {}
+        const curNote = S.exNotes[e.id]
+        if (!curNote || String(w.d) >= String(curNote.d || '')) S.exNotes[e.id] = { t: e.note, d: w.d }
+      }
     })
   }
 
@@ -636,6 +653,7 @@ export function retargetImport(S, fromId, toId) {
       onto.sets = [...(onto.sets || []), ...(moved.sets || [])]
       const tops = [onto.topW, moved.topW].filter(x => x > 0)
       if (tops.length) onto.topW = Math.max(...tops)
+      if (moved.note && !onto.note) onto.note = moved.note
     } else {
       moved.id = toId
       delete moved.n
@@ -664,6 +682,12 @@ export function retargetImport(S, fromId, toId) {
     const prev = S.exWeights[toId]
     if (!prev || String(moved.d || '') >= String(prev.d || '')) S.exWeights[toId] = moved
     delete S.exWeights[fromId]
+  }
+  if (S.exNotes?.[fromId]) {
+    const moved = S.exNotes[fromId]
+    const prev = S.exNotes[toId]
+    if (!prev || String(moved.d || '') >= String(prev.d || '')) S.exNotes[toId] = moved
+    delete S.exNotes[fromId]
   }
   S.customEx = S.customEx.filter(c => c.id !== fromId)
   return true

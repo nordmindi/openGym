@@ -421,6 +421,13 @@ export default {
   'Every set logged as “{0}” becomes {1}. The next import of that name follows.': 'Каждый подход, записанный как «{0}», становится {1}. Следующий импорт этого названия последует за ним.',
   'Match': 'Сопоставить',
   'Matched to {0}': 'Сопоставлено с {0}',
+  'Bar': 'Гриф',
+  'The plates below are for each side of this bar.': 'Блины указаны на каждую сторону этого грифа.',
+  '{0} bar · {1} each side': 'Гриф {0} · {1} на сторону',
+  '{0} bar · empty': 'Гриф {0} · пустой',
+  'Under a {0} bar': 'Меньше грифа {0}',
+  '{0} left over': 'Остаток {0}',
+  'Note for this exercise': 'Заметка к этому упражнению',
   // --- mobile build ---
   'Your data': 'Ваши данные',
   'All data stays on this phone': 'Все данные остаются на этом телефоне',

@@ -421,6 +421,13 @@ export default {
   'Every set logged as “{0}” becomes {1}. The next import of that name follows.': 'Cada serie registrada como «{0}» pasa a ser {1}. La próxima importación de ese nombre sigue.',
   'Match': 'Asignar',
   'Matched to {0}': 'Asignado a {0}',
+  'Bar': 'Barra',
+  'The plates below are for each side of this bar.': 'Los discos son para cada lado de esta barra.',
+  '{0} bar · {1} each side': 'Barra de {0} · {1} por lado',
+  '{0} bar · empty': 'Barra de {0} · vacía',
+  'Under a {0} bar': 'Por debajo de una barra de {0}',
+  '{0} left over': 'Sobran {0}',
+  'Note for this exercise': 'Nota para este ejercicio',
   // --- mobile build ---
   'Your data': 'Tus datos',
   'All data stays on this phone': 'Todos los datos se quedan en este teléfono',

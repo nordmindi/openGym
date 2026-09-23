@@ -12,14 +12,14 @@ Check an item only when it ships in a release, not when it is sketched.
 
 Switching apps fails when the old log looks thinner after import.
 
-- [ ] Exercise names from FitNotes, Strong, and Hevy match the library, or become a custom exercise the user can correct **once** so every later set of that name follows
-- [ ] Import summary lists skipped rows and why (blank set, unparseable date, unrecognised columns)
-- [ ] Re-importing the same file does not duplicate sets
-- [ ] A day that already has a workout still receives lifts from the file that are not already on that day
-- [ ] Heatmap covers the whole history, not only the last ~52 weeks
-- [ ] Days with no recorded duration (typical of FitNotes) are shaded by sets or volume, so they do not look empty
-- [ ] Imported sessions show up in History with the right date, exercise, weight, reps, and unit
-- [ ] A round-trip backup (export JSON → import backup) restores plan, workouts, body weight, and settings
+- [x] Exercise names from FitNotes, Strong, and Hevy match the library, or become a custom exercise the user can correct **once** so every later set of that name follows
+- [x] Import summary lists skipped rows and why (blank set, unparseable date, unrecognised columns)
+- [x] Re-importing the same file does not duplicate sets
+- [x] A day that already has a workout still receives lifts from the file that are not already on that day
+- [x] Heatmap covers the whole history, not only the last ~52 weeks
+- [x] Days with no recorded duration (typical of FitNotes) are shaded by sets or volume, so they do not look empty
+- [x] Imported sessions show up in History with the right date, exercise, weight, reps, and unit
+- [x] A round-trip backup (export JSON → import backup) restores plan, workouts, body weight, and settings
 
 ## 2. The live session
 

@@ -421,6 +421,13 @@ export default {
   'Every set logged as “{0}” becomes {1}. The next import of that name follows.': '"{0}"(으)로 기록된 모든 세트가 {1}이(가) 됩니다. 다음에 그 이름을 가져오면 따라갑니다.',
   'Match': '연결',
   'Matched to {0}': '{0}에 연결됨',
+  'Bar': '바',
+  'The plates below are for each side of this bar.': '아래 원판은 이 바의 한쪽에 해당합니다.',
+  '{0} bar · {1} each side': '{0} 바 · 한쪽 {1}',
+  '{0} bar · empty': '{0} 바 · 빈 바',
+  'Under a {0} bar': '{0} 바보다 가벼움',
+  '{0} left over': '{0} 남음',
+  'Note for this exercise': '이 운동에 대한 메모',
   // --- mobile build ---
   'Your data': '내 데이터',
   'All data stays on this phone': '모든 데이터는 이 휴대폰에만 저장됩니다',

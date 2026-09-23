@@ -421,6 +421,13 @@ export default {
   'Every set logged as “{0}” becomes {1}. The next import of that name follows.': 'Każda seria zapisana jako „{0}” staje się {1}. Następny import tej nazwy idzie za tym.',
   'Match': 'Przypisz',
   'Matched to {0}': 'Przypisano do {0}',
+  'Bar': 'Gryf',
+  'The plates below are for each side of this bar.': 'Obciążenie jest na każdą stronę tego gryfu.',
+  '{0} bar · {1} each side': 'Gryf {0} · {1} na stronę',
+  '{0} bar · empty': 'Gryf {0} · pusty',
+  'Under a {0} bar': 'Poniżej gryfu {0}',
+  '{0} left over': 'Zostaje {0}',
+  'Note for this exercise': 'Notatka do tego ćwiczenia',
   // --- mobile build ---
   'Your data': 'Twoje dane',
   'All data stays on this phone': 'Wszystkie dane zostają na tym telefonie',

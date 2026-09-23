@@ -421,6 +421,13 @@ export default {
   'Every set logged as “{0}” becomes {1}. The next import of that name follows.': '记为“{0}”的每一组都会变成{1}。之后导入这个名称也会跟着走。',
   'Match': '对应',
   'Matched to {0}': '已对应到{0}',
+  'Bar': '杠铃杆',
+  'The plates below are for each side of this bar.': '下面的片数是这根杆每一侧的。',
+  '{0} bar · {1} each side': '{0} 杆 · 每侧 {1}',
+  '{0} bar · empty': '{0} 杆 · 空杆',
+  'Under a {0} bar': '轻于 {0} 的杆',
+  '{0} left over': '还剩 {0}',
+  'Note for this exercise': '这个动作的备注',
   // --- mobile build ---
   'Your data': '你的数据',
   'All data stays on this phone': '所有数据都保存在这部手机上',

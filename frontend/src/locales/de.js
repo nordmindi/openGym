@@ -439,6 +439,13 @@ export default {
   'Every set logged as “{0}” becomes {1}. The next import of that name follows.': 'Jeder Satz, der als „{0}“ geloggt ist, wird zu {1}. Der nächste Import dieses Namens folgt.',
   'Match': 'Zuordnen',
   'Matched to {0}': '{0} zugeordnet',
+  'Bar': 'Stange',
+  'The plates below are for each side of this bar.': 'Die Scheiben gelten pro Seite dieser Stange.',
+  '{0} bar · {1} each side': '{0} Stange · {1} pro Seite',
+  '{0} bar · empty': '{0} Stange · leer',
+  'Under a {0} bar': 'Unter einer {0}-Stange',
+  '{0} left over': '{0} übrig',
+  'Note for this exercise': 'Notiz zu dieser Übung',
   // --- mobile build ---
   'Your data': 'Deine Daten',
   'All data stays on this phone': 'Alle Daten bleiben auf diesem Handy',

@@ -385,6 +385,7 @@ h4.sec{
 .field::placeholder,.input::placeholder{color:var(--label-3)}
 .field:focus,.input:focus{box-shadow:inset 0 0 0 2px var(--acc)}
 .field.area,textarea.input{min-height:92px;resize:vertical;line-height:1.42}
+textarea.field.note{min-height:0;margin:8px 0 0;padding:10px 12px;font-size:15px;resize:none}
 .exnote{
   background:var(--surface);border-radius:var(--r);padding:13px 15px;
   line-height:1.45;white-space:pre-wrap;font-size:15px;margin-bottom:10px;color:var(--label-2);
@@ -587,6 +588,7 @@ h4.sec{
   display:flex;align-items:flex-start;gap:7px;margin:6px 0 2px;
   font-size:13px;line-height:1.38;color:var(--acc);
 }
+button.progline{background:none;border:0;padding:0;text-align:left;width:100%;cursor:pointer;font:inherit;color:inherit}
 .progline.warn{color:var(--yellow)}
 .progline svg{flex:none;margin-top:2px}
 

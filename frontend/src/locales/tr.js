@@ -421,6 +421,13 @@ export default {
   'Every set logged as “{0}” becomes {1}. The next import of that name follows.': '“{0}” olarak kaydedilen her set {1} olur. Bu adın sonraki içe aktarması onu izler.',
   'Match': 'Eşle',
   'Matched to {0}': '{0} ile eşlendi',
+  'Bar': 'Bar',
+  'The plates below are for each side of this bar.': 'Plakalar bu barın her bir tarafı içindir.',
+  '{0} bar · {1} each side': '{0} bar · her yanda {1}',
+  '{0} bar · empty': '{0} bar · boş',
+  'Under a {0} bar': '{0} barın altında',
+  '{0} left over': '{0} artıyor',
+  'Note for this exercise': 'Bu egzersiz için not',
   // --- mobile build ---
   'Your data': 'Verileriniz',
   'All data stays on this phone': 'Tüm veriler bu telefonda kalır',

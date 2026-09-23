@@ -421,6 +421,13 @@ export default {
   'Every set logged as “{0}” becomes {1}. The next import of that name follows.': 'Ogni serie registrata come «{0}» diventa {1}. La prossima importazione di quel nome segue.',
   'Match': 'Abbina',
   'Matched to {0}': 'Abbinato a {0}',
+  'Bar': 'Bilanciere',
+  'The plates below are for each side of this bar.': 'I dischi valgono per ogni lato di questo bilanciere.',
+  '{0} bar · {1} each side': 'Bilanciere da {0} · {1} per lato',
+  '{0} bar · empty': 'Bilanciere da {0} · vuoto',
+  'Under a {0} bar': 'Sotto un bilanciere da {0}',
+  '{0} left over': '{0} di resto',
+  'Note for this exercise': 'Nota per questo esercizio',
   // --- mobile build ---
   'Your data': 'I tuoi dati',
   'All data stays on this phone': 'Tutti i dati restano su questo telefono',

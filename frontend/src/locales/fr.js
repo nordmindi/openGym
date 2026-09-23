@@ -421,6 +421,13 @@ export default {
   'Every set logged as “{0}” becomes {1}. The next import of that name follows.': 'Chaque série notée « {0} » devient {1}. Le prochain import de ce nom suit.',
   'Match': 'Rattacher',
   'Matched to {0}': 'Rattaché à {0}',
+  'Bar': 'Barre',
+  'The plates below are for each side of this bar.': 'Les disques sont pour chaque côté de cette barre.',
+  '{0} bar · {1} each side': 'Barre de {0} · {1} de chaque côté',
+  '{0} bar · empty': 'Barre de {0} · vide',
+  'Under a {0} bar': 'Sous une barre de {0}',
+  '{0} left over': '{0} restants',
+  'Note for this exercise': 'Note pour cet exercice',
   // --- mobile build ---
   'Your data': 'Vos données',
   'All data stays on this phone': 'Toutes les données restent sur ce téléphone',
