@@ -428,6 +428,8 @@ export default {
   'Under a {0} bar': '{0} barın altında',
   '{0} left over': '{0} artıyor',
   'Note for this exercise': 'Bu egzersiz için not',
+  'Warm-up': 'Isınma',
+  'Working set': 'Çalışma seti',
   // --- mobile build ---
   'Your data': 'Verileriniz',
   'All data stays on this phone': 'Tüm veriler bu telefonda kalır',

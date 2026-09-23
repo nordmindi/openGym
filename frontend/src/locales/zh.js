@@ -428,6 +428,8 @@ export default {
   'Under a {0} bar': '轻于 {0} 的杆',
   '{0} left over': '还剩 {0}',
   'Note for this exercise': '这个动作的备注',
+  'Warm-up': '热身',
+  'Working set': '正式组',
   // --- mobile build ---
   'Your data': '你的数据',
   'All data stays on this phone': '所有数据都保存在这部手机上',

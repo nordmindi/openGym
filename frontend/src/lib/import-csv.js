@@ -368,7 +368,8 @@ export function parseWorkoutCSV(text, { unit = 'kg', aliases = {} } = {}) {
       ? num(cell(r, 'distanceKm'))
       : toKm(cell(r, 'distance'), cell(r, 'distanceUnit'))
     if (!w && !reps && !mins && !km) { skipped++; skippedEmpty++; continue }
-    if (/warm/i.test(cell(r, 'setType'))) warmups++
+    const warm = /warm/i.test(cell(r, 'setType'))
+    if (warm) warmups++
 
     const key = keyOf(name)
     let id = bound.get(key)
@@ -403,7 +404,7 @@ export function parseWorkoutCSV(text, { unit = 'kg', aliases = {} } = {}) {
     // it never reaches the stored set.
     const set = isCardio
       ? { min: mins || 0, speed: mins > 0 ? Math.round(km / (mins / 60) * 10) / 10 : 0, done: true }
-      : { w, r: reps || 0, done: true, u: rowUnit }
+      : { w, r: reps || 0, done: true, u: rowUnit, ...(warm ? { warm: true } : {}) }
     // Effort rides along only where the app can show it again: a weighted rep set. A treadmill
     // row with an RPE would have nowhere to put it. A set is kept on one scale, so a file
     // carrying both columns is read as RIR — the same precedence setLabel reads them back with.

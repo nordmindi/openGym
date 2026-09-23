@@ -92,6 +92,10 @@ const effortTail = s => {
 // One-line summary of a logged set. `cfg` carries the mode when the caller has it (a routine
 // entry or a workout entry); passing an id alone keeps the old body-part behaviour.
 export function setLabel(id, s, cfg) {
+  const label = describeSet(id, s, cfg)
+  return s && s.warm ? label + ' · ' + t('Warm-up') : label
+}
+function describeSet(id, s, cfg) {
   const c = cfg || { id }
   const mode = modeOf(c)
   if (mode === 'cardio') return `${s.min || 0} min @ ${fmtNum(s.speed || 0)} km/h`
@@ -141,10 +145,14 @@ export function cleanupSg(ex) {
 export function lastEntryFor(S, exId) {
   for (let i = S.workouts.length - 1; i >= 0; i--) {
     const en = S.workouts[i].entries.find(e => e.id === exId)
+    if (!en) continue
     // `target` is what the session prescribed; finished workouts carry it so labels and the
     // progression engine can read a session back the way it was logged. Older workouts have
     // none — modeOf() falls back to the body part for them, which is what they were.
-    if (en && en.sets.some(s => s.done)) return { d: S.workouts[i].d, sets: en.sets.filter(s => s.done), target: en.target || null }
+    const done = en.sets.filter(s => s.done && !s.warm)
+    // Warm-ups stay in the log. The next session is built from the working sets, so a
+    // 40 kg ramp does not become the weight on the bar.
+    if (done.length) return { d: S.workouts[i].d, sets: done, target: en.target || null }
   }
   return null
 }
@@ -152,7 +160,7 @@ export function bestWeightFor(S, exId) {
   let best = 0
   S.workouts.forEach(w => w.entries.forEach(e => {
     if (e.id === exId) {
-      e.sets.forEach(s => { if (s.done && s.w > best) best = s.w })
+      e.sets.forEach(s => { if (s.done && !s.warm && s.w > best) best = s.w })
       if (e.topW && e.topW > best) best = e.topW
     }
   }))

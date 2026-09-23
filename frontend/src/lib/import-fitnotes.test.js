@@ -166,6 +166,18 @@ describe('FitNotes import', () => {
     expect(S.exNotes['0025']).toEqual({ t: 'wider grip', d: '2019-06-02' })
   })
 
+  it('marks a warm-up set and leaves the working set unmarked', () => {
+    const p = parseWorkoutCSV([
+      'Date,Exercise Name,Set Order,Weight,Reps,Set Type',
+      '2024-01-01,Barbell Bench Press,1,40,5,Warm Up',
+      '2024-01-01,Barbell Bench Press,2,60,5,Normal',
+    ].join('\n'), { unit: 'kg' })
+    const sets = p.workouts[0].entries[0].sets
+    expect(sets[0].warm).toBe(true)
+    expect(sets[1].warm).toBeUndefined()
+    expect(p.warmups).toBe(1)
+  })
+
   it('reads a Hevy exercise note', () => {
     const p = parseWorkoutCSV([
       'title,start_time,exercise_title,exercise_notes,set_index,weight_kg,reps',

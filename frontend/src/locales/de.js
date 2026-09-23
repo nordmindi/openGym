@@ -446,6 +446,8 @@ export default {
   'Under a {0} bar': 'Unter einer {0}-Stange',
   '{0} left over': '{0} übrig',
   'Note for this exercise': 'Notiz zu dieser Übung',
+  'Warm-up': 'Aufwärmen',
+  'Working set': 'Arbeitssatz',
   // --- mobile build ---
   'Your data': 'Deine Daten',
   'All data stays on this phone': 'Alle Daten bleiben auf diesem Handy',

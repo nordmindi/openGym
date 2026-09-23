@@ -167,7 +167,11 @@ export default function Stats() {
   if (curEx) {
     S.workouts.forEach(w => {
       const en = w.entries.find(e => e.id === curEx)
-      if (en) { const mx = Math.max(0, ...en.sets.filter(s => s.done).map(metric), curCardio || curTimed ? 0 : (en.topW || 0)); if (mx > 0) { exPts.push({ t: w.start, y: mx, d: w.d, sets: en.sets.filter(s => s.done), target: en.target }); if (mx > exBest) exBest = mx } }
+      if (en) {
+        const logged = en.sets.filter(s => s.done && !s.warm)
+        const mx = Math.max(0, ...logged.map(metric), curCardio || curTimed ? 0 : (en.topW || 0))
+        if (mx > 0) { exPts.push({ t: w.start, y: mx, d: w.d, sets: logged, target: en.target }); if (mx > exBest) exBest = mx }
+      }
     })
     exList = exPts.slice(-5).reverse()
   }

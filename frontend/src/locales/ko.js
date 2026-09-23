@@ -428,6 +428,8 @@ export default {
   'Under a {0} bar': '{0} 바보다 가벼움',
   '{0} left over': '{0} 남음',
   'Note for this exercise': '이 운동에 대한 메모',
+  'Warm-up': '워밍업',
+  'Working set': '본세트',
   // --- mobile build ---
   'Your data': '내 데이터',
   'All data stays on this phone': '모든 데이터는 이 휴대폰에만 저장됩니다',

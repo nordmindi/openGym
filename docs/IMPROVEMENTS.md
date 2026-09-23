@@ -25,9 +25,9 @@ Switching apps fails when the old log looks thinner after import.
 
 People stay for the workout screen.
 
-- [ ] Plate calculator on the set (bar + plates for the working weight)
-- [ ] Per-exercise notes, visible while the set is on screen
-- [ ] Warm-up sets that do not count as the working set for progression or PRs
+- [x] Plate calculator on the set (bar + plates for the working weight)
+- [x] Per-exercise notes, visible while the set is on screen
+- [x] Warm-up sets that do not count as the working set for progression or PRs
 - [ ] Rest timer readable at arm's length: big remaining time, one-tap complete, last weight already filled
 - [ ] Supersets and timed holds never hide the next field
 - [ ] Percentage / training-max programming (5/3/1-style) on the existing progression engine

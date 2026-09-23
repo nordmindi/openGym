@@ -4,6 +4,7 @@ import {
   policyFor, defaultIncrement, POLICIES_FOR, DELOAD_AFTER, MAX_BW_SETS
 } from './progression.js'
 import { EXDB } from './exercises.js'
+import { bestWeightFor, lastEntryFor } from './history.js'
 
 const LIFT = EXDB.find(e => e.bp !== 'cardio' && !['upper legs', 'lower legs', 'back', 'hips', 'glutes'].includes(e.bp)).id
 const HEAVY = EXDB.find(e => e.bp === 'upper legs').id
@@ -49,6 +50,27 @@ describe('readSession', () => {
 
   it('refuses to call a session a hit when nothing was prescribed', () => {
     expect(readSession({ id: LIFT, target: {}, sets: [{ w: 60, r: 5, done: true }] }).ok).toBe(false)
+  })
+
+  it('judges the working sets only, so a short warm-up is not a missed session', () => {
+    const s = readSession({
+      id: LIFT, target: T,
+      sets: [
+        { w: 30, r: 3, done: true, warm: true },
+        { w: 60, r: 5, done: true },
+        { w: 60, r: 5, done: true },
+        { w: 60, r: 5, done: true },
+      ]
+    })
+    expect(s.ok).toBe(true)
+    expect(s.weight).toBe(60)
+    expect(s.count).toBe(3)
+  })
+
+  it('does not call a warm-up-only session a hit', () => {
+    const s = readSession({ id: LIFT, target: T, sets: [{ w: 40, r: 5, done: true, warm: true }] })
+    expect(s.ok).toBe(false)
+    expect(s.weight).toBe(0)
   })
 
   it('reads a timed session by the hold, not by reps', () => {
@@ -116,6 +138,23 @@ describe('linear progression', () => {
     const p = nextPrescription(hist(LIFT, [[60, 5, 5, 5]]), cfg)
     expect(p.kind).toBe('up')
     expect(p.weight).toBe(62.5)
+  })
+
+  it('still advances when the only short set was a warm-up', () => {
+    const S = hist(LIFT, [[60, 5, 5, 5]])
+    S.workouts[0].entries[0].sets.unshift({ w: 30, r: 3, done: true, warm: true })
+    const p = nextPrescription(S, cfg)
+    expect(p.kind).toBe('up')
+    expect(p.weight).toBe(62.5)
+  })
+
+  it('does not record a warm-up as the best, and does not copy it into the next session', () => {
+    const S = hist(LIFT, [[60, 5, 5, 5]])
+    S.workouts[0].entries[0].sets.unshift({ w: 200, r: 1, done: true, warm: true })
+    expect(bestWeightFor(S, LIFT)).toBe(60)
+    const last = lastEntryFor(S, LIFT)
+    expect(last.sets.map(s => s.w)).toEqual([60, 60, 60])
+    expect(last.sets.some(s => s.warm)).toBe(false)
   })
 
   it('repeats the weight after a miss instead of advancing', () => {

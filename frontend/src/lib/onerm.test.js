@@ -91,6 +91,7 @@ describe('bestSetOf', () => {
   it('survives a missing or empty entry', () => {
     expect(bestSetOf(null)).toBeNull()
     expect(bestSetOf({ sets: [] })).toBeNull()
+    expect(bestSetOf({ sets: [{ w: 200, r: 5, done: true, warm: true }, { w: 100, r: 5, done: true }] }).w).toBe(100)
   })
 })
 

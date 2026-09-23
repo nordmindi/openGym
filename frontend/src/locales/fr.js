@@ -428,6 +428,8 @@ export default {
   'Under a {0} bar': 'Sous une barre de {0}',
   '{0} left over': '{0} restants',
   'Note for this exercise': 'Note pour cet exercice',
+  'Warm-up': 'Échauffement',
+  'Working set': 'Série de travail',
   // --- mobile build ---
   'Your data': 'Vos données',
   'All data stays on this phone': 'Toutes les données restent sur ce téléphone',

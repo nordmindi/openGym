@@ -428,6 +428,8 @@ export default {
   'Under a {0} bar': 'Poniżej gryfu {0}',
   '{0} left over': 'Zostaje {0}',
   'Note for this exercise': 'Notatka do tego ćwiczenia',
+  'Warm-up': 'Rozgrzewka',
+  'Working set': 'Seria robocza',
   // --- mobile build ---
   'Your data': 'Twoje dane',
   'All data stays on this phone': 'Wszystkie dane zostają na tym telefonie',

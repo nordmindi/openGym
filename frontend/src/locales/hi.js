@@ -428,6 +428,8 @@ export default {
   'Under a {0} bar': '{0} बार से कम',
   '{0} left over': '{0} बचा',
   'Note for this exercise': 'इस एक्सरसाइज़ के लिए नोट',
+  'Warm-up': 'वार्म-अप',
+  'Working set': 'वर्किंग सेट',
   // --- mobile build ---
   'Your data': 'आपका डेटा',
   'All data stays on this phone': 'सारा डेटा इसी फ़ोन पर रहता है',

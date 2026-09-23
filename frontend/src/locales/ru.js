@@ -428,6 +428,8 @@ export default {
   'Under a {0} bar': 'Меньше грифа {0}',
   '{0} left over': 'Остаток {0}',
   'Note for this exercise': 'Заметка к этому упражнению',
+  'Warm-up': 'Разминка',
+  'Working set': 'Рабочий подход',
   // --- mobile build ---
   'Your data': 'Ваши данные',
   'All data stays on this phone': 'Все данные остаются на этом телефоне',
