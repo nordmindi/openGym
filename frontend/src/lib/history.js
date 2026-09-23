@@ -220,6 +220,22 @@ export function setsDoneActive(A) {
   if (A) A.entries.forEach(e => e.sets.forEach(s => { if (s.done) n++ }))
   return n
 }
+
+/** Time the session has actually been running. Pauses (pausedAt / pausedMs) don't count. */
+export function sessionElapsedMs(active, now = Date.now()) {
+  if (!active?.start) return 0
+  const held = active.pausedAt ? Math.max(0, now - active.pausedAt) : 0
+  return Math.max(0, now - active.start - (active.pausedMs || 0) - held)
+}
+
+/** Running → paused, paused → running. Mutates the active session. */
+export function toggleSessionPause(active, now = Date.now()) {
+  if (!active) return
+  if (active.pausedAt) {
+    active.pausedMs = (active.pausedMs || 0) + Math.max(0, now - active.pausedAt)
+    active.pausedAt = null
+  } else active.pausedAt = now
+}
 export const lastBW = S => (S.bodyweight.length ? S.bodyweight[S.bodyweight.length - 1] : null)
 
 // Group consecutive items sharing a superset id (sg) into "units" of indices.

@@ -3,7 +3,7 @@ import { useStore } from './store/useStore.js'
 import { useUI } from './store/useUI.js'
 import { EXDB, EXIDX, BODYPARTS, isCardio, isBodyweightEq, allExercises, equipmentOf } from './lib/exercises.js'
 import { fmtDate, fmtNum, fmtVol, fmtDur, durPart, todayISO, uid, exCount, DAYN, MONTHS_LONG, ACCENTS } from './lib/format.js'
-import { lastEntryFor, bestWeightFor, buildSets, effectiveRoutineId, workoutVolume, setsDone, setsDoneActive, lastBW, supersetUnits, unitOf, setLabel, defaultConfig, cleanupSg, modeOf, effortOf, isBw, isPerSide, sideReps } from './lib/history.js'
+import { lastEntryFor, bestWeightFor, buildSets, effectiveRoutineId, workoutVolume, setsDone, setsDoneActive, lastBW, supersetUnits, unitOf, setLabel, defaultConfig, cleanupSg, modeOf, effortOf, isBw, isPerSide, sideReps, sessionElapsedMs } from './lib/history.js'
 import { beep, vibrate } from './lib/sound.js'
 import { t, instrFor, getLang, INSTR_LANGS } from './lib/i18n.js'
 import { nav } from './lib/nav.js'
@@ -15,7 +15,7 @@ import { Button, Slider, Switch, Segmented, SelectRow, Row } from './components/
 import { glyphOf, GLYPH_GROUPS, DEFAULT_GLYPH } from './lib/glyphs.js'
 import BodyMap from './components/BodyMap.jsx'
 import { loadOfWorkouts } from './lib/muscles.js'
-import { parseImport, mergeImport } from './lib/import-csv.js'
+import { parseImport, mergeImport, aliasesFromState, retargetImport } from './lib/import-csv.js'
 import { buildPlanBundle, parsePlan, mergePlan, printPlan } from './lib/plan-share.js'
 import { estimate1RM, best1RM, is1RMRecord, REP_CAP } from './lib/onerm.js'
 import { nextPrescription, applyPrescription, policyFor, defaultIncrement, POLICIES_FOR, POLICY_NAME, POLICY_DESC, MAX_BW_SETS } from './lib/progression.js'
@@ -141,15 +141,19 @@ function ImportSummary({ parsed, close }) {
   const have = isBW
     ? parsed.bodyweight.filter(b => st.bodyweight.some(x => x.d === b.d)).length
     : parsed.workouts.filter(w => st.workouts.some(x => x.d === w.d)).length
-  const fresh = (isBW ? parsed.bodyweight.length : parsed.workouts.length) - have
+  const freshDays = (isBW ? parsed.bodyweight.length : parsed.workouts.length) - have
+  // Overlapping days still receive any lifts that aren't already logged that day.
+  const canImport = isBW ? freshDays > 0 : parsed.workouts.length > 0
 
   const doImport = () => {
     let res
     update(s => { res = mergeImport(s, parsed) })
     close()
-    toast(isBW
-      ? t('{0} weigh-ins imported', res.added)
-      : t('{0} workouts imported', res.added))
+    if (isBW) toast(t('{0} weigh-ins imported', res.added))
+    else if (res.merged && res.added)
+      toast(t('{0} workouts imported, {1} days topped up', res.added, res.merged))
+    else if (res.merged) toast(t('{0} days topped up with new exercises', res.merged))
+    else toast(t('{0} workouts imported', res.added))
   }
 
   return <>
@@ -161,7 +165,7 @@ function ImportSummary({ parsed, close }) {
     <div className="tiles" style={{ textAlign: 'left' }}>
       {isBW ? <>
         <div className="tile"><div className="l">{t('Weigh-ins')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{parsed.bodyweight.length}</div></div>
-        <div className="tile"><div className="l">{t('New')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{fresh}</div></div>
+        <div className="tile"><div className="l">{t('New')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{freshDays}</div></div>
       </> : <>
         <div className="tile"><div className="l">{t('Workouts')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{parsed.workouts.length}</div></div>
         <div className="tile"><div className="l">{t('Sets')}</div><div className="v" style={{ fontSize: '1.1rem' }}>{parsed.sets}</div></div>
@@ -179,7 +183,16 @@ function ImportSummary({ parsed, close }) {
       {t('The file does not say which unit it uses — numbers are imported as they are.')}
     </div>}
     {have > 0 && <div className="small dim" style={{ marginBottom: 10 }}>
-      {t('{0} days already have data here and will be left alone.', have)}
+      {t('{0} days already have data here — new exercises on those days will still be added.', have)}
+    </div>}
+    {!isBW && parsed.skippedName > 0 && <div className="small dim" style={{ marginBottom: 10 }}>
+      {t('{0} rows skipped — no exercise name.', parsed.skippedName)}
+    </div>}
+    {!isBW && parsed.skippedDate > 0 && <div className="small dim" style={{ marginBottom: 10 }}>
+      {t('{0} rows skipped — no date.', parsed.skippedDate)}
+    </div>}
+    {!isBW && parsed.skippedEmpty > 0 && <div className="small dim" style={{ marginBottom: 10 }}>
+      {t('{0} rows skipped — no weight, reps, distance or time.', parsed.skippedEmpty)}
     </div>}
     {/* The file rated its sets. Say so: the column is off by default, so the ratings would
         otherwise arrive invisibly and look like they had been dropped. */}
@@ -197,8 +210,8 @@ function ImportSummary({ parsed, close }) {
       </div>
     </>}
 
-    <Button variant="primary" onClick={doImport} disabled={!fresh}>
-      {fresh ? t('Import') : t('Nothing new to import')}
+    <Button variant="primary" onClick={doImport} disabled={!canImport}>
+      {canImport ? t('Import') : t('Nothing new to import')}
     </Button>
     <div style={{ height: 8 }} />
     <Button variant="ghost" className="dim" onClick={close}>{t('Cancel')}</Button>
@@ -210,7 +223,7 @@ export function importFromApp(file, onDone) {
   const rd = new FileReader()
   rd.onload = () => {
     let parsed
-    try { parsed = parseImport(String(rd.result), { unit: S().unit }) }
+    try { parsed = parseImport(String(rd.result), { unit: S().unit, aliases: aliasesFromState(S()) }) }
     catch (e) { toast(t('Could not read that file')); return }
     if (parsed.error === 'empty') { toast(t('That file is empty')); return }
     if (parsed.error) { toast(t("That file's columns aren't recognised — see the docs for supported apps.")); return }
@@ -296,6 +309,9 @@ function ExerciseDetail({ ex, close }) {
     {ex.desc && <div className="exnote">{ex.desc}</div>}
     {best > 0 && <div className="small row" style={{ marginBottom: 6, gap: 5 }}><Icon name="trophy" style={{ fontSize: 14, color: 'var(--yellow)' }} />{t('Best:')} <b className="accent">{fmtNum(best)} {st.unit}</b>{last ? ` · ${t('last')} ${fmtDate(last.d)}: ${last.sets.map(s => setLabel(ex.id, s, last.target)).join(', ')}` : ''}</div>}
     <Button variant="primary" icon="plus" style={{ margin: '10px 0 4px' }} onClick={() => addToRoutineSheet(ex)}>{t('Add to my plan')}</Button>
+    {ex.custom && ex.importKey && <div style={{ marginTop: 8 }}>
+      <Button icon="link" onClick={() => matchImportedExercise(ex, close)}>{t('Match to a library exercise')}</Button>
+    </div>}
     {ex.custom && <div className="row" style={{ gap: 8, marginTop: 8 }}>
       <Button icon="pencil" style={{ flex: 1 }} onClick={() => { close(); customExSheet(ex) }}>{t('Edit')}</Button>
       <Button variant="danger" icon="trash" style={{ flex: 1 }} onClick={() => deleteCustomEx(ex, close)}>{t('Delete')}</Button>
@@ -305,6 +321,23 @@ function ExerciseDetail({ ex, close }) {
   </>
 }
 export const exerciseDetailSheet = ex => ui().openSheet(close => <ExerciseDetail ex={ex} close={close} />)
+
+// One correction covers the sets already logged and every later import of that source name.
+function matchImportedExercise(ex, closeDetail) {
+  if (S().active?.entries.some(e => e.id === ex.id)) { toast(t('Finish your current workout first')); return }
+  closeDetail()
+  exercisePicker(pick => {
+    confirmSheet({
+      title: t('Match to “{0}”?', pick.n),
+      message: t('Every set logged as “{0}” becomes {1}. The next import of that name follows.', ex.n, pick.n),
+      confirmText: t('Match'),
+      onConfirm: () => {
+        update(s => { retargetImport(s, ex.id, pick.id) })
+        toast(t('Matched to {0}', pick.n))
+      },
+    })
+  }, { libraryOnly: true })
+}
 
 /* ============================ add to routine ============================ */
 function AddToRoutine({ ex, close }) {
@@ -408,7 +441,7 @@ function usageMap(st) {
   st.workouts.forEach(w => w.entries.forEach(e => { u[e.id] = (u[e.id] || 0) + 1 }))
   return u
 }
-function ExercisePicker({ onPick, close }) {
+function ExercisePicker({ onPick, close, libraryOnly }) {
   const st = useStore(s => s.S)
   const usage = usageMap(st)
   const [q, setQ] = useState('')
@@ -416,7 +449,7 @@ function ExercisePicker({ onPick, close }) {
   const [eq, setEq] = useState('')          // '' = any equipment
   const [shown, setShown] = useState(50)
   const ql = q.toLowerCase().trim()
-  const all = allExercises(st)
+  const all = libraryOnly ? EXDB : allExercises(st)
   let base = all.filter(e =>
     (bp === '★' ? usage[e.id] : (!bp || e.bp === bp)) &&
     (!ql || e.n.toLowerCase().includes(ql) || e.tg.includes(ql) || e.eq.includes(ql) || (e.desc || '').toLowerCase().includes(ql)))
@@ -427,7 +460,7 @@ function ExercisePicker({ onPick, close }) {
   const f = eqOn ? base.filter(e => e.eq === eqOn) : base
   const chosenCount = Object.keys(usage).length
   return <>
-    <h3>{t('Add exercise')}</h3>
+    <h3>{libraryOnly ? t('Match to a library exercise') : t('Add exercise')}</h3>
     <div className="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
       <input className="input" placeholder={t('Search {0} exercises…', all.length)} value={q} onChange={e => { setQ(e.target.value); setShown(50) }} /></div>
     <div className="chips" style={{ margin: eqOpts.length > 1 ? '10px 0 6px' : '10px 0' }}>
@@ -440,11 +473,11 @@ function ExercisePicker({ onPick, close }) {
       {eqOpts.map(x => <button key={x} className={'chip' + (eqOn === x ? ' on' : '')} onClick={() => { setEq(x); setShown(50) }}>{t(x)}</button>)}
     </div>}
     <div className="list">
-      {bp !== '★' && <div className="item" onClick={() => customExSheet(null, ex => onPick(ex), q.trim())}>
+      {!libraryOnly && bp !== '★' && <div className="item" onClick={() => customExSheet(null, ex => onPick(ex), q.trim())}>
         <div className="thumb thumb-x"><Icon name="sparkles" /></div>
         <div className="grow"><div className="tt">{t('Create your own exercise')}</div><div className="ss">{t('name + body part, no animation')}</div></div><Icon name="plus" className="chev" />
       </div>}
-      {f.slice(0, shown).map(e => <div key={e.id} className="item" onClick={() => onPick(e)}>
+      {f.slice(0, shown).map(e => <div key={e.id} className="item" onClick={() => { if (libraryOnly) close(); onPick(e) }}>
         <Thumb ex={e} /><div className="grow"><div className="tt capitalize">{e.n}</div><div className="ss capitalize">{t(e.tg || e.bp)} · {t(e.eq)}</div></div>
         {usage[e.id] && <span className="tag acc"><Icon name="starFill" /></span>}<Icon name="plus" className="chev" />
       </div>)}
@@ -453,7 +486,7 @@ function ExercisePicker({ onPick, close }) {
     {f.length > shown && <><div style={{ height: 8 }} /><Button onClick={() => setShown(s => s + 50)}>{t('Show more')}</Button></>}
   </>
 }
-export const exercisePicker = onPick => ui().openSheet(close => <ExercisePicker onPick={onPick} close={close} />)
+export const exercisePicker = (onPick, opts = {}) => ui().openSheet(close => <ExercisePicker onPick={onPick} close={close} libraryOnly={opts.libraryOnly} />)
 
 /* ============================ exercise config ============================ */
 // Progression settings for one exercise (issue #17). Shown inside the config sheet because
@@ -947,7 +980,7 @@ function doFinishWorkout() {
     if (rec && !prs.includes(e.id)) e1prs.push({ id: e.id, ...rec })
   })
   const w = {
-    id: A.id, d: A.d, start: A.start, end: Date.now(), routineId: A.routineId, name: A.name, bw: A.bw,
+    id: A.id, d: A.d, start: A.start, end: A.start + sessionElapsedMs(A), routineId: A.routineId, name: A.name, bw: A.bw,
     // `target` (what the session prescribed) is kept alongside the sets: without it a
     // finished workout cannot say whether it hit its reps, and a timed session reads back
     // as "0 reps". It is what the progression engine works from.

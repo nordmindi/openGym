@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
-import { effectiveRoutine } from '../lib/history.js'
+import { useUI } from '../store/useUI.js'
+import { effectiveRoutine, toggleSessionPause } from '../lib/history.js'
 import { todayISO } from '../lib/format.js'
 import { t } from '../lib/i18n.js'
 import Icon from './Icon.jsx'
@@ -15,10 +16,26 @@ export default function TabBar({ onStart }) {
   const cur = loc.pathname.split('/')[1] || 'home'
   const on = k => cur === k || (cur === 'history' && k === 'stats') || (cur === 'settings' && k === 'home')
 
+  const onWorkout = loc.pathname === '/workout'
+  const runningHere = !!(S.active && onWorkout && !S.active.pausedAt)
   const startWorkout = () => {
+    // Already in the session: the play button pauses the clock, and resumes it again.
+    // From any other tab it still just brings the session back.
+    if (S.active && onWorkout) {
+      const pausing = !S.active.pausedAt
+      useStore.getState().update(s => { toggleSessionPause(s.active) })
+      if (pausing) useUI.getState().pauseCountdowns()
+      else useUI.getState().resumeCountdowns()
+      return
+    }
     if (!S.active) {
       const r = effectiveRoutine(S, todayISO())
       if (r && r.ex.length) { onStart(r.id); return }
+    }
+    // Coming back from another tab: Resume means the clock runs again.
+    if (S.active.pausedAt) {
+      useStore.getState().update(s => { toggleSessionPause(s.active) })
+      useUI.getState().resumeCountdowns()
     }
     nav('/workout')
   }
@@ -33,8 +50,8 @@ export default function TabBar({ onStart }) {
       <Tab k="home" icon="house" to="/home" label={t('Home')} />
       <Tab k="plan" icon="calendar" to="/plan" label={t('Plan')} />
       <button className={'start' + (S.active ? ' rec' : '')} onClick={startWorkout}>
-        <span className="cir"><Icon name={S.active ? 'play' : 'dumbbell'} /></span>
-        <span>{S.active ? t('Resume') : t('Start')}</span>
+        <span className="cir"><Icon name={runningHere ? 'pause' : S.active ? 'play' : 'dumbbell'} /></span>
+        <span>{runningHere ? t('Pause') : S.active ? t('Resume') : t('Start')}</span>
       </button>
       <Tab k="stats" icon="chart" to="/stats" label={t('Stats')} />
       <Tab k="library" icon="list" to="/library" label={t('Exercises')} />

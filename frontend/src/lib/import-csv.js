@@ -20,6 +20,7 @@
 
 import { EXDB, EXIDX } from './exercises.js'
 import { uid } from './format.js'
+import { cleanupSg } from './history.js'
 
 /* ----------------------------------------------------------------- CSV ---- */
 
@@ -64,7 +65,7 @@ const COLUMNS = [
   ['weightKg', ['weight kg']],
   ['weightLb', ['weight lbs', 'weight lb']],
   ['weight', ['weight']],
-  ['weightUnit', ['weight unit', 'unit']],
+  ['weightUnit', ['weight unit', 'weightunit', 'unit']],
   ['reps', ['reps', 'repetitions']],
   // Hevy and Strong both write an RPE per set. Nothing mainstream exports RIR, but read it
   // when it is there rather than dropping the column on the floor.
@@ -72,7 +73,9 @@ const COLUMNS = [
   ['rir', ['rir', 'reps in reserve']],
   ['distanceKm', ['distance km']],
   ['distance', ['distance']],
-  ['distanceUnit', ['distance unit']],
+  // FitNotes Android sometimes writes DistanceUnit / WeightUnit as one CamelCase token
+  // (no space); norm() then yields "distanceunit" rather than "distance unit".
+  ['distanceUnit', ['distance unit', 'distanceunit']],
   ['seconds', ['seconds', 'duration seconds']],
   ['time', ['time', 'duration']],
   ['setType', ['set type']],
@@ -155,24 +158,40 @@ function buildIndex() {
 // Extending this table is the intended way to improve import accuracy.
 const ALIAS_EX = {
   'bench press': '0025', 'barbell bench press': '0025', 'flat bench press': '0025',
-  'incline bench press': '0047', 'decline bench press': '0033',
+  'flat barbell bench press': '0025', 'incline bench press': '0047', 'decline bench press': '0033',
   'close grip bench press': '0030', 'close-grip bench press': '0030',
+  'dumbbell bench press': '0289', 'incline dumbbell bench press': '0314',
+  'incline dumbbell press': '0314', 'dumbbell incline press': '0314', 'dumbbell incline bench press': '0314',
   squat: '0043', 'back squat': '0043', 'barbell squat': '0043', 'front squat': '0042',
-  deadlift: '0032', 'romanian deadlift': '0085', rdl: '0085', 'sumo deadlift': '0117',
+  deadlift: '0032', 'barbell deadlift': '0032', 'romanian deadlift': '0085', rdl: '0085',
+  'dumbbell romanian deadlift': '1459', 'sumo deadlift': '0117',
   'lat pulldown': '2330', 'lat pull down': '2330', pulldown: '2330',
-  shrug: '0095', shrugs: '0095',
+  'wide grip lat pulldown': '2330', 'wide-grip lat pulldown': '2330',
+  shrug: '0095', shrugs: '0095', 'barbell shrug': '0095',
   'overhead press': '0091', 'military press': '0091', 'shoulder press': '0091', ohp: '0091',
   'barbell row': '0027', 'bent over row': '0027', 'bent-over row': '0027',
-  'dumbbell row': '0292', 'one arm dumbbell row': '0292',
+  'seated row': '0180', 'cable row': '0180', 'seated cable row': '0180', 'cable seated row': '0180',
+  'dumbbell row': '0292', 'one arm dumbbell row': '0292', 'one-arm dumbbell row': '0292',
   'leg curl': '0586', 'lying leg curl': '0586', 'seated leg curl': '0586',
   'leg press': '0739', 'leg extension': '0585',
   'calf raise': '1372', 'standing calf raise': '1372', 'seated calf raise': '0088',
-  'lateral raise': '0334', 'side raise': '0334', 'reverse fly': '0348', 'rear delt fly': '0348',
+  'lateral raise': '0334', 'side raise': '0334', 'dumbbell lateral raise': '0334',
+  'reverse fly': '0348', 'rear delt fly': '0348', 'face pull': '0203', 'facepull': '0203',
   'bicep curl': '0294', 'biceps curl': '0294', 'dumbbell curl': '0294',
+  'hammer curl': '0313', 'dumbbell hammer curl': '0313',
   'preacher curl': '0070', 'barbell curl': '0031',
   'tricep pushdown': '0241', 'triceps pushdown': '0241', pushdown: '0241',
+  'tricep extension': '0061', 'triceps extension': '0061',
   skullcrusher: '0060', 'skull crusher': '0060', 'lying triceps extension': '0061',
-  lunge: '0054', lunges: '0054', 'cable crossover': '1269', 'cable cross over': '1269',
+  lunge: '0054', lunges: '0054', 'walking lunge': '0054',
+  'cable crossover': '1269', 'cable cross over': '1269',
+  'pull up': '0652', 'pull ups': '0652', 'pull-up': '0652', 'pull-ups': '0652',
+  'chin up': '1326', 'chin ups': '1326', 'chin-up': '1326', 'chin-ups': '1326',
+  'push up': '0662', 'push ups': '0662', 'push-up': '0662', 'push-ups': '0662',
+  dip: '0251', dips: '0251', 'chest dip': '0251', 'triceps dip': '0019',
+  'good morning': '0044', 'farmers walk': '2133', 'farmer walk': '2133', 'farmer s walk': '2133',
+  'hanging leg raise': '0472', crunch: '0274', crunches: '0274',
+  'hip thrust': '1409', 'barbell hip thrust': '1409', 'glute bridge': '1409', 'barbell glute bridge': '1409',
 }
 
 let ALIAS_IDX = null
@@ -292,7 +311,15 @@ const toKm = (v, unit) => num(v) * (KM[String(unit || 'km').toLowerCase().trim()
  * of several thousand sets will contain oddities, and losing the file over one of them
  * helps nobody. Bad rows are counted and reported instead.
  */
-export function parseWorkoutCSV(text, { unit = 'kg' } = {}) {
+/** Names the user already corrected, keyed by the normalised source name.
+ *  A library match (importAliases) wins over a custom that still carries the same key. */
+export function aliasesFromState(S) {
+  const a = { ...(S?.importAliases || {}) }
+  for (const c of S?.customEx || []) if (c.importKey && a[c.importKey] == null) a[c.importKey] = c.id
+  return a
+}
+
+export function parseWorkoutCSV(text, { unit = 'kg', aliases = {} } = {}) {
   const rows = parseCSV(text)
   if (rows.length < 2) return { error: 'empty' }
   const map = mapHeader(rows[0])
@@ -300,11 +327,13 @@ export function parseWorkoutCSV(text, { unit = 'kg' } = {}) {
   const dateCol = map.date !== undefined ? 'date' : map.startTime !== undefined ? 'startTime' : null
   if (!dateCol || map.exercise === undefined) return { error: 'unrecognised' }
 
-  const resolved = new Map()          // exercise name -> dataset id | null, resolved once
+  const resolved = new Map()          // source name -> library id | null (stats only)
+  const bound = new Map()             // source name -> id actually written on the set
   const byDate = new Map()
   const created = new Map()
   const unmatched = new Set()
   let sets = 0, skipped = 0, matched = 0, warmups = 0, rpeSets = 0, rirSets = 0
+  let skippedName = 0, skippedDate = 0, skippedEmpty = 0
   let sawLb = false, sawKg = false
 
   const cell = (r, f) => (map[f] === undefined ? '' : String(r[map[f]] ?? '').trim())
@@ -313,7 +342,12 @@ export function parseWorkoutCSV(text, { unit = 'kg' } = {}) {
     const r = rows[i]
     const name = cell(r, 'exercise')
     const when = parseWhen(cell(r, dateCol))
-    if (!name || !when) { skipped++; continue }
+    if (!name || !when) {
+      skipped++
+      if (!name) skippedName++
+      else skippedDate++
+      continue
+    }
 
     // explicit kg/lb columns beat a generic column plus a unit column
     let w = 0, rowUnit = ''
@@ -333,25 +367,36 @@ export function parseWorkoutCSV(text, { unit = 'kg' } = {}) {
     const km = map.distanceKm !== undefined && cell(r, 'distanceKm')
       ? num(cell(r, 'distanceKm'))
       : toKm(cell(r, 'distance'), cell(r, 'distanceUnit'))
-    if (!w && !reps && !mins && !km) { skipped++; continue }
+    if (!w && !reps && !mins && !km) { skipped++; skippedEmpty++; continue }
     if (/warm/i.test(cell(r, 'setType'))) warmups++
 
     const key = keyOf(name)
-    let id = resolved.get(key)
-    if (id === undefined) { id = matchExercise(name); resolved.set(key, id) }
-    if (id) matched++
-    else {
-      let c = created.get(key)
-      if (!c) {
-        c = {
+    let id = bound.get(key)
+    if (id === undefined) {
+      // A previous import of this exact name, including one the user has since renamed.
+      const known = aliases[key]
+      const knownLib = known && EXIDX[known] && !EXIDX[known].custom
+      if (known) {
+        id = known
+        resolved.set(key, knownLib ? known : null)
+      } else {
+      const libraryId = matchExercise(name)
+      resolved.set(key, libraryId || null)
+      if (libraryId) id = libraryId
+      else {
+        const c = {
           id: 'im' + uid(), n: name.toLowerCase(), custom: true, eq: 'custom', tg: '', desc: '',
+          importKey: key,
           bp: CATEGORY_BP[cell(r, 'category').toLowerCase()] || (km || (mins && !reps) ? 'cardio' : 'upper legs'),
         }
         created.set(key, c)
         unmatched.add(name)
+        id = c.id
       }
-      id = c.id
+      }
+      bound.set(key, id)
     }
+    if (resolved.get(key)) matched++
 
     const isCardio = (km > 0 || mins > 0) && !reps
     // `u` carries the row's own unit into the conversion pass below and is dropped there —
@@ -426,7 +471,7 @@ export function parseWorkoutCSV(text, { unit = 'kg' } = {}) {
     matched: new Set([...resolved.values()].filter(Boolean)).size,
     matchedSets: matched,
     created: created.size, unmatchedNames: [...unmatched].sort(),
-    sets, skipped, warmups, fileUnit, mixedUnits, converted, rpeSets, rirSets,
+    sets, skipped, skippedName, skippedDate, skippedEmpty, warmups, fileUnit, mixedUnits, converted, rpeSets, rirSets,
     from: dates[0] || null, to: dates[dates.length - 1] || null,
   }
 }
@@ -503,24 +548,123 @@ export function parseImport(text, opts) {
 
 /* --------------------------------------------------------------- merge ---- */
 
-/** Merge into state. Existing days win — importing twice never duplicates a workout. */
+/** Merge into state. Existing days are kept and new exercises are added into them —
+ *  importing twice never duplicates a lift on a day. Days with no local workout yet
+ *  are appended as whole workouts. */
 export function mergeImport(S, parsed) {
   if (parsed.kind === 'bodyweight') {
     const have = new Set(S.bodyweight.map(b => b.d))
     const fresh = parsed.bodyweight.filter(b => !have.has(b.d))
     S.bodyweight = [...S.bodyweight, ...fresh].sort((a, b) => (a.d < b.d ? -1 : 1))
-    return { added: fresh.length, skipped: parsed.bodyweight.length - fresh.length }
+    return { added: fresh.length, skipped: parsed.bodyweight.length - fresh.length, merged: 0 }
   }
-  const have = new Set(S.workouts.map(w => w.d))
-  const fresh = parsed.workouts.filter(w => !have.has(w.d))
-  const used = new Set(fresh.flatMap(w => w.entries.map(e => e.id)))
-  const customs = parsed.customEx.filter(c => used.has(c.id) && !EXIDX[c.id])
-  S.customEx = [...(S.customEx || []), ...customs]
-  S.workouts = [...S.workouts, ...fresh].sort((a, b) => (a.d < b.d ? -1 : 1))
-  // seed the weight suggestions from the newest imported set of each lift
-  fresh.forEach(w => w.entries.forEach(e => {
-    const mx = Math.max(0, ...e.sets.map(s => s.w || 0), e.topW || 0)
-    if (mx > 0) { const cur = S.exWeights[e.id]; if (!cur || w.d >= cur.d) S.exWeights[e.id] = { w: mx, d: w.d } }
-  }))
-  return { added: fresh.length, skipped: parsed.workouts.length - fresh.length }
+
+  S.customEx = S.customEx || []
+  // Re-imports mint new custom ids each parse — fold them onto an existing custom with
+  // the same normalised name so a second import doesn't invent a twin of every unmatched lift.
+  const customByName = new Map()
+  for (const c of S.customEx) customByName.set(keyOf(c.n), c.id)
+  const idMap = new Map()
+  for (const c of parsed.customEx || []) {
+    const k = keyOf(c.n)
+    const existing = customByName.get(k)
+    if (existing) {
+      idMap.set(c.id, existing)
+      const kept = S.customEx.find(x => x.id === existing)
+      // Remember the source name even if the user has since renamed the exercise.
+      if (kept && c.importKey && !kept.importKey) kept.importKey = c.importKey
+    } else {
+      S.customEx.push(c)
+      customByName.set(k, c.id)
+    }
+  }
+  const remap = id => idMap.get(id) || id
+
+  const byDate = new Map(S.workouts.map(w => [w.d, w]))
+  let added = 0, merged = 0, skipped = 0
+  const touchWeights = (w, entries) => {
+    entries.forEach(e => {
+      const mx = Math.max(0, ...e.sets.map(s => s.w || 0), e.topW || 0)
+      if (mx > 0) {
+        const cur = S.exWeights[e.id]
+        if (!cur || w.d >= cur.d) S.exWeights[e.id] = { w: mx, d: w.d }
+      }
+    })
+  }
+
+  for (const w of parsed.workouts) {
+    const entries = w.entries.map(e => ({ ...e, id: remap(e.id) }))
+    const existing = byDate.get(w.d)
+    if (!existing) {
+      const nw = { ...w, entries }
+      S.workouts.push(nw)
+      byDate.set(w.d, nw)
+      touchWeights(nw, entries)
+      added++
+      continue
+    }
+    const haveEx = new Set(existing.entries.map(e => e.id))
+    const fresh = entries.filter(e => !haveEx.has(e.id))
+    if (!fresh.length) { skipped++; continue }
+    existing.entries.push(...fresh)
+    existing.vol = (existing.vol || 0) + fresh.reduce(
+      (a, e) => a + e.sets.reduce((b, s) => b + (s.w || 0) * (s.r || 0), 0), 0)
+    touchWeights(existing, fresh)
+    merged++
+  }
+  S.workouts.sort((a, b) => (a.d < b.d ? -1 : 1))
+  return { added, merged, skipped }
+}
+
+/** Point one imported custom at a library exercise. Logged sets, the plan, and the
+ *  next import of that source name all follow. The custom itself is removed. */
+export function retargetImport(S, fromId, toId) {
+  if (!fromId || !toId || fromId === toId) return false
+  const custom = (S.customEx || []).find(c => c.id === fromId)
+  if (!custom) return false
+  if (custom.importKey) {
+    S.importAliases = S.importAliases || {}
+    S.importAliases[custom.importKey] = toId
+  }
+  const rewrite = entries => {
+    if (!entries) return
+    const from = entries.findIndex(e => e.id === fromId)
+    if (from < 0) return
+    const [moved] = entries.splice(from, 1)
+    const onto = entries.find(e => e.id === toId)
+    if (onto) {
+      onto.sets = [...(onto.sets || []), ...(moved.sets || [])]
+      const tops = [onto.topW, moved.topW].filter(x => x > 0)
+      if (tops.length) onto.topW = Math.max(...tops)
+    } else {
+      moved.id = toId
+      delete moved.n
+      if (moved.target?.id === fromId) moved.target = { ...moved.target, id: toId }
+      entries.splice(from, 0, moved)
+    }
+  }
+  for (const w of S.workouts || []) {
+    rewrite(w.entries)
+    if (Array.isArray(w.prs)) w.prs = [...new Set(w.prs.map(id => id === fromId ? toId : id))]
+  }
+  rewrite(S.active?.entries)
+  for (const r of S.routines || []) {
+    if (!r.ex) continue
+    const hasTarget = r.ex.some(e => e.id === toId)
+    r.ex = r.ex.filter(e => {
+      if (e.id !== fromId) return true
+      if (hasTarget) return false
+      e.id = toId
+      return true
+    })
+    cleanupSg(r.ex)
+  }
+  if (S.exWeights?.[fromId]) {
+    const moved = S.exWeights[fromId]
+    const prev = S.exWeights[toId]
+    if (!prev || String(moved.d || '') >= String(prev.d || '')) S.exWeights[toId] = moved
+    delete S.exWeights[fromId]
+  }
+  S.customEx = S.customEx.filter(c => c.id !== fromId)
+  return true
 }

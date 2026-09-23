@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { modeOf, isTimed, fmtSec, setLabel, defaultConfig, buildSets, exLine, workoutVolume, effortOf, stepEffort, capEffort, isBw, isPerSide, sideReps, repStep } from './history.js'
+import { modeOf, isTimed, fmtSec, setLabel, defaultConfig, buildSets, exLine, workoutVolume, effortOf, stepEffort, capEffort, isBw, isPerSide, sideReps, repStep, sessionElapsedMs, toggleSessionPause } from './history.js'
 import { EXDB } from './exercises.js'
 
 // Real ids out of the shipped catalogue, so the body-part fallback is exercised for real.
@@ -394,5 +394,24 @@ describe('workoutVolume', () => {
   it('leaves an unloaded bodyweight set at zero volume rather than inventing a number', () => {
     const w = { entries: [{ id: BW, target: { bodyweight: true }, sets: [{ w: 0, r: 20, done: true }] }] }
     expect(workoutVolume(w)).toBe(0)
+  })
+})
+
+describe('session pause', () => {
+  const start = 1_000_000
+  it('counts wall time while the session is running', () => {
+    expect(sessionElapsedMs({ start }, start + 12_000)).toBe(12_000)
+  })
+  it('freezes the clock for as long as the session stays paused', () => {
+    const active = { start, pausedAt: start + 5_000 }
+    expect(sessionElapsedMs(active, start + 5_000)).toBe(5_000)
+    expect(sessionElapsedMs(active, start + 40_000)).toBe(5_000)
+  })
+  it('resumes from the frozen time and keeps earlier pauses', () => {
+    const active = { start, pausedMs: 3_000, pausedAt: start + 10_000 }
+    toggleSessionPause(active, start + 18_000)
+    expect(active.pausedAt).toBeNull()
+    expect(active.pausedMs).toBe(11_000)
+    expect(sessionElapsedMs(active, start + 20_000)).toBe(9_000)
   })
 })

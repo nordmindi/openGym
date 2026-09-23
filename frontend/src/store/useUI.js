@@ -17,6 +17,56 @@ let workInt = null
 let workTick = null
 let workDone = null
 
+function disarmRest() {
+  if (timerInt) clearInterval(timerInt); timerInt = null
+  if (timerTick) document.removeEventListener('visibilitychange', timerTick); timerTick = null
+}
+function disarmWork() {
+  if (workInt) clearInterval(workInt); workInt = null
+  if (workTick) document.removeEventListener('visibilitychange', workTick); workTick = null
+}
+function armRest() {
+  disarmRest()
+  timerTick = () => {
+    const tm = useUI.getState().timer
+    if (!tm || tm.held) return
+    const left = Math.max(0, Math.round((tm.endsAt - Date.now()) / 1000))
+    if (left === tm.left) return
+    const snd = useStore.getState().S.sound
+    if (left <= 0) {
+      beep(snd, 880, 0.15); beep(snd, 880, 0.15, 0.25); beep(snd, 1320, 0.4, 0.5)
+      vibrate([200, 100, 200]); useUI.getState().toast(t('Rest over — next set!')); useUI.getState().stopRest(); return
+    }
+    if (left <= 3) beep(snd, 660, 0.1)
+    useUI.setState({ timer: { ...tm, left } })
+  }
+  timerInt = setInterval(timerTick, 1000)
+  document.addEventListener('visibilitychange', timerTick)
+}
+function armWork() {
+  disarmWork()
+  workTick = () => {
+    const wk = useUI.getState().work
+    if (!wk || wk.held) return
+    const left = Math.max(0, Math.round((wk.endsAt - Date.now()) / 1000))
+    if (left === wk.left) return
+    const snd = useStore.getState().S.sound
+    if (left <= 0) {
+      beep(snd, 880, 0.15); beep(snd, 880, 0.15, 0.25); beep(snd, 1320, 0.4, 0.5)
+      vibrate([200, 100, 200])
+      const done = workDone
+      const total = wk.total
+      useUI.getState().stopWork()
+      if (done) done(total)
+      return
+    }
+    if (left <= 3) beep(snd, 660, 0.1)
+    useUI.setState({ work: { ...wk, left } })
+  }
+  workInt = setInterval(workTick, 1000)
+  document.addEventListener('visibilitychange', workTick)
+}
+
 export const useUI = create((set, get) => ({
   sheets: [],          // { id, render:(close)=>JSX, kind:'sheet'|'center', locked }
   toastMsg: '',
@@ -41,23 +91,11 @@ export const useUI = create((set, get) => ({
   startRest(sec) {
     get().stopRest()
     const endsAt = Date.now() + sec * 1000
-    set({ timer: { left: sec, total: sec, endsAt } })
+    const held = !!useStore.getState().S.active?.pausedAt
+    set({ timer: { left: sec, total: sec, endsAt, held } })
+    if (held) return
     pushRestTimer(sec)
-    timerTick = () => {
-      const tm = get().timer
-      if (!tm) return
-      const left = Math.max(0, Math.round((tm.endsAt - Date.now()) / 1000))
-      if (left === tm.left) return
-      const snd = useStore.getState().S.sound
-      if (left <= 0) {
-        beep(snd, 880, 0.15); beep(snd, 880, 0.15, 0.25); beep(snd, 1320, 0.4, 0.5)
-        vibrate([200, 100, 200]); get().toast(t('Rest over — next set!')); get().stopRest(); return
-      }
-      if (left <= 3) beep(snd, 660, 0.1)
-      set({ timer: { ...tm, left } })
-    }
-    timerInt = setInterval(timerTick, 1000)
-    document.addEventListener('visibilitychange', timerTick)
+    armRest()
   },
   addRest(sec) {
     const tm = get().timer
@@ -66,6 +104,7 @@ export const useUI = create((set, get) => ({
     // taking off more than is left means "I'm ready now" — same as skipping, and it keeps a
     // negative duration out of both the progress bar and the server-side push schedule
     if (left <= 0) { get().stopRest(); return }
+    if (tm.held) { set({ timer: { ...tm, left, total: tm.total + sec } }); return }
     set({ timer: { ...tm, left, total: tm.total + sec, endsAt: tm.endsAt + sec * 1000 } })
     pushRestTimer(left)
   },
@@ -90,26 +129,42 @@ export const useUI = create((set, get) => ({
     const total = Math.max(1, Math.round(sec) || 1)
     const endsAt = Date.now() + total * 1000
     workDone = onDone
-    set({ work: { left: total, total, endsAt, label } })
-    workTick = () => {
-      const wk = get().work
-      if (!wk) return
-      const left = Math.max(0, Math.round((wk.endsAt - Date.now()) / 1000))
-      if (left === wk.left) return
-      const snd = useStore.getState().S.sound
-      if (left <= 0) {
-        beep(snd, 880, 0.15); beep(snd, 880, 0.15, 0.25); beep(snd, 1320, 0.4, 0.5)
-        vibrate([200, 100, 200])
-        const done = workDone
-        get().stopWork()
-        if (done) done(wk.total)
-        return
-      }
-      if (left <= 3) beep(snd, 660, 0.1)
-      set({ work: { ...wk, left } })
+    const held = !!useStore.getState().S.active?.pausedAt
+    set({ work: { left: total, total, endsAt, label, held } })
+    if (!held) armWork()
+  },
+  // Session pause freezes whichever countdown is on screen. The absolute endsAt is
+  // rebuilt on resume, so the remaining seconds don't drain while the clock is stopped.
+  pauseCountdowns() {
+    const now = Date.now()
+    const tm = get().timer
+    if (tm && !tm.held) {
+      disarmRest()
+      const left = Math.max(0, Math.round((tm.endsAt - now) / 1000))
+      set({ timer: { ...tm, left, held: true } })
+      cancelPushRestTimer()
     }
-    workInt = setInterval(workTick, 1000)
-    document.addEventListener('visibilitychange', workTick)
+    const wk = get().work
+    if (wk && !wk.held) {
+      disarmWork()
+      const left = Math.max(0, Math.round((wk.endsAt - now) / 1000))
+      set({ work: { ...wk, left, held: true } })
+    }
+  },
+  resumeCountdowns() {
+    const tm = get().timer
+    if (tm?.held) {
+      const endsAt = Date.now() + tm.left * 1000
+      set({ timer: { ...tm, endsAt, held: false } })
+      pushRestTimer(tm.left)
+      armRest()
+    }
+    const wk = get().work
+    if (wk?.held) {
+      const endsAt = Date.now() + wk.left * 1000
+      set({ work: { ...wk, endsAt, held: false } })
+      armWork()
+    }
   },
   // Ended the hold early — log what was actually held.
   finishWorkEarly() {
