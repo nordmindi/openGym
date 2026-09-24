@@ -121,10 +121,11 @@ Read this before hosting openGym for anyone other than yourself.
   `requireUserVerification: false` (`api/server.js:297`, `api/server.js:343`), so a passkey
   released without a biometric or PIN is still accepted. In practice: unlocked device ≈ account
   access.
-- **One passkey per profile, and no recovery.** Every successful registration creates a *new*
-  profile (`api/server.js:309-319`); there is no route to attach a second passkey to an existing
-  one, and no email or reset path. Lose the passkey and that profile is unreachable — only direct
-  surgery on `./data` gets it back.
+- **A profile can hold more than one passkey.** `POST /api/passkey/options` and
+  `POST /api/passkey/verify` attach another passkey to the signed-in user; login already
+  looks up whichever credential was presented. There is still no email or reset path.
+  Lose every passkey and that profile is unreachable — only direct surgery on `./data`
+  gets it back.
 - **Disabling someone isn't a ban.** They can still register a fresh profile with a new passkey
   unless `INVITE_ONLY=1` is set.
 - **HTTPS is required and the app doesn't provide it.** The API container speaks plain HTTP and

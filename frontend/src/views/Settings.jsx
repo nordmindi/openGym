@@ -4,7 +4,7 @@ import { useStore, DEF, hasData } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { ACCENTS, todayISO, localTZ } from '../lib/format.js'
 import { effortOf } from '../lib/history.js'
-import { api, webauthnOK, passkeyLogin, passkeyRegister, IS_ANDROID } from '../lib/api.js'
+import { api, webauthnOK, passkeyLogin, passkeyRegister, passkeyAdd, IS_ANDROID } from '../lib/api.js'
 import { pushSupported, enablePush, disablePush, sendTestPush } from '../lib/push.js'
 import { wakeLockSupported } from '../lib/wakelock.js'
 import { t, LANGS, INSTR_LANGS } from '../lib/i18n.js'
@@ -24,6 +24,29 @@ export default function Settings() {
   const fileRef = useRef(null)
   const importRef = useRef(null)
   const wakeOK = wakeLockSupported()
+  const [server, setServer] = useState(() => localStorage.getItem('gym_server') || '')
+  const [token, setToken] = useState(() => localStorage.getItem('gym_sync_token') || '')
+  const [synced, setSynced] = useState(() => !!(localStorage.getItem('gym_server') && localStorage.getItem('gym_sync_token')))
+
+  const saveSync = async () => {
+    const base = server.trim().replace(/\/$/, '')
+    const tok = token.trim()
+    if (!base || !tok) { toast(t('Enter the server address and the sync token.')); return }
+    localStorage.setItem('gym_server', base)
+    localStorage.setItem('gym_sync_token', tok)
+    setSynced(true)
+    try {
+      const ok = await pullState()
+      toast(ok ? t('Synced with your openGym') : t('Could not reach the server — the phone keeps its own log.'))
+    } catch { toast(t('Could not reach the server — the phone keeps its own log.')) }
+  }
+  const mintToken = async () => {
+    try {
+      const { token: minted } = await api('/api/sync-token', { method: 'POST', body: '{}' })
+      await navigator.clipboard.writeText(minted)
+      toast(t('Sync token copied — paste it into the phone.'))
+    } catch { toast(t('Could not create a sync token.')) }
+  }
 
   const doExport = async () => {
     const json = JSON.stringify(S, null, 2)
@@ -75,9 +98,13 @@ export default function Settings() {
     {/* ---------- account (demo and mobile builds have nothing to sign in to) ---------- */}
     <Section title={MOBILE ? t('Your data') : DEMO ? t('Demo') : t('Account')}>
       {MOBILE ? <>
-        <Row icon="lock" iconTint="var(--acc)" title={t('All data stays on this phone')} subtitle={t('No account, no cloud — back it up anytime with Export below.')} />
-        <Row icon="rocket" iconTint="var(--indigo)" title={t('Self-host openGym')} subtitle={t('Passkey sign-in, sync across your devices, your own data.')} accessory="chevron"
-          onClick={() => window.open(REPO, '_blank', 'noopener')} />
+        <Row icon="lock" iconTint="var(--acc)" title={t('The phone keeps its own log')} subtitle={t('Newest edit wins per workout day, and a day is never deleted silently.')} />
+        <div style={{ padding: '8px 16px 12px', display: 'grid', gap: 8 }}>
+          <input className="field" aria-label={t('Server address')} value={server} onChange={e => setServer(e.target.value)} placeholder={t('Server address')} />
+          <input className="field" aria-label={t('Sync token')} value={token} onChange={e => setToken(e.target.value)} placeholder={t('Sync token')} />
+          <Button onClick={saveSync}>{t('Sync to my openGym')}</Button>
+        </div>
+        {synced && <Row icon="signOut" iconTint="var(--red)" title={t('Stop syncing')} subtitle={t('The log stays on this phone.')} danger onClick={() => { localStorage.removeItem('gym_sync_token'); localStorage.removeItem('gym_server'); localStorage.removeItem('gym_dirty'); setServer(''); setToken(''); setSynced(false); toast(t('Sync stopped — the log stays on this phone.')) }} />}
       </> : DEMO ? <>
         <Row icon="sparkles" iconTint="var(--acc)" title={t('You’re in the demo')} subtitle={t('Example data, stored only in this browser — change anything you like.')} />
         <Row icon="reset" iconTint="var(--blue)" title={t('Reset demo data')} accessory="chevron"
@@ -86,6 +113,8 @@ export default function Settings() {
           onClick={() => window.open(REPO, '_blank', 'noopener')} />
       </> : user ? <>
         <Row icon="personCircle" iconTint="var(--grey)" title={user.name} subtitle={t('Signed in with passkey — data syncs to this profile.')} />
+        <Row icon="link" iconTint="var(--blue)" title={t('Sync token for the phone')} subtitle={t('Newest edit wins per workout day, and a day is never deleted silently.')} accessory="chevron" onClick={mintToken} />
+        <Row icon="sparkles" iconTint="var(--acc)" title={t('Add another passkey')} subtitle={t('A second phone can sign in if you lose this one.')} accessory="chevron" onClick={async () => { try { await passkeyAdd(); toast(t('Passkey added')) } catch (e) { if (e.name !== 'NotAllowedError') toast(e.message || t('Could not add a passkey.')) } }} />
         {user.admin && <Row icon="wrench" iconTint="var(--indigo)" title={t('Admin dashboard')} accessory="chevron" onClick={() => nav('/admin')} />}
         <Row icon="signOut" iconTint="var(--red)" title={t('Sign out')} danger onClick={() => confirmSheet({ title: t('Sign out?'), message: t('Your data is synced to your profile first, then cleared from this device.'), confirmText: t('Sign out'), danger: true, onConfirm: () => { signOut(); nav('/home') } })} />
         <Row icon="shield" iconTint="var(--red)" title={t('Sign out everywhere')} subtitle={t('Ends this profile’s sessions on all your devices.')} danger onClick={signOutEverywhere} />

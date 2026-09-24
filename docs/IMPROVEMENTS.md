@@ -36,23 +36,22 @@ People stay for the workout screen.
 
 ## 3. One log on the phone and the server
 
-The Android app (`VITE_MOBILE=1`) never talks to the API. A self-hosted profile never
-appears on the sideloaded APK. These are two products until this section is done.
+The phone keeps its own file and can optionally sync it to a self-hosted server.
 
-- [ ] Phone keeps `opengym-state.json` as the offline copy
-- [ ] Optional "sync to my openGym" using the existing passkey and `/api/data`
-- [ ] Conflict rule stated in the UI in one sentence: newest edit wins per workout day, and a day is never deleted silently
-- [ ] Offline edits sync when the server is reachable again
-- [ ] Sign-out and a failed sync never wipe the local file
+- [x] Phone keeps `opengym-state.json` as the offline copy
+- [x] Optional "sync to my openGym" using the existing passkey and `/api/data`
+- [x] Conflict rule stated in the UI in one sentence: newest edit wins per workout day, and a day is never deleted silently
+- [x] Offline edits sync when the server is reachable again
+- [x] Sign-out and a failed sync never wipe the local file
 
 ## 4. An install you can hand to someone
 
-- [ ] Release APK is signed with a keystore that is kept; every update uses that same key
-- [ ] `npm run build:mobile` works on Windows (the Unix `VITE_MOBILE=1` prefix fails in `cmd`)
-- [ ] Docs name Java 21 for Gradle (Android Studio's JDK is enough; a system Java 17 is not)
-- [ ] `./data` is not readable as plain JSON by anyone who can open the host folder, or the threat is accepted in writing in `SECURITY.md` and left as-is
-- [ ] A profile can hold a second passkey, so losing one phone is not losing the account
-- [ ] Session secret and VAPID keys are generated on first run and never committed (`data/` stays gitignored)
+- [x] Release APK is signed with a keystore that is kept; every update uses that same key
+- [x] `npm run build:mobile` works on Windows (the Unix `VITE_MOBILE=1` prefix fails in `cmd`)
+- [x] Docs name Java 21 for Gradle (Android Studio's JDK is enough; a system Java 17 is not)
+- [x] `./data` is not readable as plain JSON by anyone who can open the host folder, or the threat is accepted in writing in `SECURITY.md` and left as-is
+- [x] A profile can hold a second passkey, so losing one phone is not losing the account
+- [x] Session secret and VAPID keys are generated on first run and never committed (`data/` stays gitignored)
 
 ## 5. Insight, after the log is solid
 

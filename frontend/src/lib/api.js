@@ -5,8 +5,18 @@ export const BIO = IS_APPLE ? 'Face ID / Touch ID' : IS_ANDROID ? 'fingerprint o
 export const VAULT = IS_APPLE ? 'iCloud Keychain' : IS_ANDROID ? 'Google Password Manager' : 'your password manager'
 export const webauthnOK = () => !!(window.PublicKeyCredential && navigator.credentials)
 
+export function syncBase() {
+  try { return (localStorage.getItem('gym_server') || '').replace(/\/$/, '') } catch { return '' }
+}
+export function syncToken() {
+  try { return localStorage.getItem('gym_sync_token') || '' } catch { return '' }
+}
 export async function api(path, opts) {
-  const r = await fetch(path, Object.assign({ headers: { 'Content-Type': 'application/json' } }, opts))
+  const headers = { 'Content-Type': 'application/json' }
+  const token = syncToken()
+  if (token) headers.Authorization = 'Bearer ' + token
+  const base = syncBase()
+  const r = await fetch((base || '') + path, Object.assign({ credentials: base ? 'include' : 'same-origin' }, opts, { headers }))
   const data = await r.json().catch(() => ({}))
   if (!r.ok) { const e = new Error(data.error || ('HTTP ' + r.status)); e.status = r.status; throw e }
   return data
@@ -50,6 +60,11 @@ export async function passkeyRegister(name, code) {
   const cred = await navigator.credentials.create({ publicKey: toCreationOptions(options) })
   const res = await api('/api/register/verify', { method: 'POST', body: JSON.stringify({ cid, credential: credToJSON(cred) }) })
   return res.user
+}
+export async function passkeyAdd() {
+  const { cid, options } = await api('/api/passkey/options', { method: 'POST', body: '{}' })
+  const cred = await navigator.credentials.create({ publicKey: toCreationOptions(options) })
+  await api('/api/passkey/verify', { method: 'POST', body: JSON.stringify({ cid, credential: credToJSON(cred) }) })
 }
 export async function passkeyLogin() {
   const { cid, options } = await api('/api/login/options', { method: 'POST', body: '{}' })

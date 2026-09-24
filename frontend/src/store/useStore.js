@@ -4,6 +4,7 @@ import { localTZ } from '../lib/format.js'
 import { registerCustom } from '../lib/exercises.js'
 import { DEMO, DEMO_SEEDED } from '../lib/demo.js'
 import { MOBILE, nativeLoad, nativeSave, syncReminder } from '../lib/mobile.js'
+import { hasSyncLink, mergeLogs } from '../lib/sync.js'
 
 const KEY = 'gym_state_v1'
 export const DEF = {
@@ -46,7 +47,7 @@ export const useStore = create((set, get) => {
     localStorage.setItem(KEY, JSON.stringify(S))
     set({ S })
     if (MOBILE) nativePersist()
-    if (push && get().user) {
+    if (push && hasSyncLink(get().user, localStorage.getItem('gym_sync_token'))) {
       clearTimeout(pushTm)
       pushTm = setTimeout(() => get().pushState(), 1500)
     }
@@ -68,6 +69,9 @@ export const useStore = create((set, get) => {
       pushTm = null
       get().pushState()
     }
+  })
+  window.addEventListener('online', () => {
+    if (localStorage.getItem('gym_dirty') === '1') get().pushState()
   })
 
   // Everything a sign-out leaves behind on this device, whichever way it was triggered.
@@ -102,7 +106,7 @@ export const useStore = create((set, get) => {
     },
 
     async pushState() {
-      if (!get().user) return
+      if (!hasSyncLink(get().user, localStorage.getItem('gym_sync_token'))) return
       clearTimeout(pushTm)
       try { await api('/api/data', { method: 'PUT', body: JSON.stringify({ state: get().S }) }); localStorage.removeItem('gym_dirty') }
       catch (e) { localStorage.setItem('gym_dirty', '1') }
@@ -111,18 +115,24 @@ export const useStore = create((set, get) => {
       try {
         const { state } = await api('/api/data')
         const S = get().S
-        const dirty = localStorage.getItem('gym_dirty') === '1'
-        if (state && (!hasData(S) || ((state._ts || 0) >= (S._ts || 0) && !dirty))) {
-          const active = S.active
-          const next = Object.assign(clone(DEF), state)
-          if (active) next.active = active
-          persist(next, false)
-        } else if (hasData(S)) { await get().pushState() }
-      } catch (e) { /* offline — keep local */ }
+        if (!state) { if (hasData(S)) await get().pushState(); return true }
+        const merged = Object.assign(clone(DEF), mergeLogs(S, state))
+        persist(merged, false)
+        await get().pushState()
+        return true
+      } catch (e) { return false }
     },
 
     async signOut() {
       try { await get().pushState(); await api('/api/logout', { method: 'POST', body: '{}' }) } catch (e) { /* */ }
+      // The phone's file is the log. Signing out drops the sync token, not the training.
+      if (MOBILE) {
+        localStorage.removeItem('gym_sync_token')
+        localStorage.removeItem('gym_server')
+        localStorage.removeItem('gym_dirty')
+        get().setUser(null)
+        return
+      }
       clearLocalSession()
     },
 
@@ -134,6 +144,13 @@ export const useStore = create((set, get) => {
     async signOutAll() {
       await get().pushState()   // never throws — stores gym_dirty and moves on when offline
       await api('/api/logout/all', { method: 'POST', body: '{}' })
+      if (MOBILE) {
+        localStorage.removeItem('gym_sync_token')
+        localStorage.removeItem('gym_server')
+        localStorage.removeItem('gym_dirty')
+        get().setUser(null)
+        return
+      }
       clearLocalSession()
     },
 
@@ -147,8 +164,8 @@ export const useStore = create((set, get) => {
 
     // Boot: ask the server who we are, then pull.
     async boot() {
-      // Mobile build: no backend either — restore from the file mirror (the durable copy;
-      // localStorage may have been evicted since the last run) and go straight in.
+      // Mobile build: the file is the log. Restore it, then pull from the server only
+      // when a sync token is saved. A failed pull leaves the file as it was.
       if (MOBILE) {
         const saved = await nativeLoad()
         const S = get().S
@@ -159,6 +176,9 @@ export const useStore = create((set, get) => {
         }
         get().setGuest(true)
         syncReminder(get().S)
+        if (localStorage.getItem('gym_sync_token') && localStorage.getItem('gym_server')) {
+          await get().pullState()
+        }
         set({ ready: true })
         return
       }

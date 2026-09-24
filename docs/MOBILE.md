@@ -5,21 +5,23 @@ openGym ships in two flavors from the same codebase:
 | | **Self-hosted** (this repo's default) | **Mobile app** (`VITE_MOBILE=1`) |
 |---|---|---|
 | Runs | in any browser, against your own server | natively on iPhone / Android (Capacitor shell) |
-| Accounts | passkey sign-in, one profile per person | none — the phone *is* the account |
-| Data | synced to your server, readable on desktop | stays on the device (file in the app's private storage) |
+| Accounts | passkey sign-in, one profile per person | none by default; optional sync token from a passkey session |
+| Data | synced to your server, readable on desktop | `opengym-state.json` on the phone; optional sync to your server |
 | Reminders | Web Push from your server | native local notifications, no server involved |
 | Exercise media | served by your server (`img/`, `gif/`) | loaded from the jsDelivr CDN |
 
-The mobile flavor never talks to a backend: no sign-in screen, no sync, no telemetry.
-State is mirrored from `localStorage` into `opengym-state.json` in the app's private data
-directory on every change (iOS is allowed to evict WebView storage under pressure — the
-file mirror is the durable copy and is restored on launch). Backups go out through the
-OS share sheet instead of a browser download.
+The phone keeps `opengym-state.json` in the app's private data directory on every change
+(iOS is allowed to evict WebView storage under pressure — the file is the durable copy
+and is restored on launch). Settings can optionally sync that file to a self-hosted
+server: sign in with a passkey on the server, copy the sync token, and paste the server
+address and token on the phone. Newest edit wins per workout day, and a day is never
+deleted silently. Signing out and a failed sync leave the file in place. Backups go out
+through the OS share sheet instead of a browser download.
 
 ## Prerequisites
 
 - Node 20+
-- **Android:** Android Studio (bundles the SDK). Java 21 for Gradle.
+- **Android:** Android Studio (bundles the SDK). Java 21 for Gradle — Android Studio's JDK is enough; a system Java 17 is not.
 - **iOS:** a Mac with Xcode 15+ and CocoaPods (`brew install cocoapods`). A free Apple ID
   is enough to run the app on your own iPhone (see below); paid membership is only needed
   for App Store distribution, which openGym doesn't do.
@@ -29,7 +31,7 @@ OS share sheet instead of a browser download.
 ```sh
 cd frontend
 npm install
-npm run build:mobile        # VITE_MOBILE build + `cap sync` into android/ and ios/
+npm run build:mobile        # sets VITE_MOBILE and syncs android/ and ios/ (works in cmd and bash)
 
 npx cap open android        # opens Android Studio → run on emulator or device
 npx cap open ios            # opens Xcode (Mac only) → set your signing team, then run
@@ -69,16 +71,22 @@ To build and sign your own:
 
 ```sh
 cd frontend && npm run build:mobile
-cd android && ./gradlew assembleRelease            # → app/build/outputs/apk/release/app-release-unsigned.apk
-
-# one-time: create a keystore. KEEP IT — updates must be signed with the same key,
-# or Android refuses to install the new version over the old one.
-keytool -genkeypair -keystore my.keystore -alias opengym -keyalg RSA -validity 10950
-
-# align + sign (zipalign/apksigner ship with the Android SDK build-tools)
-zipalign -f -p 4 app-release-unsigned.apk aligned.apk
-apksigner sign --ks my.keystore --ks-key-alias opengym --out openGym.apk aligned.apk
+cd android && ./gradlew assembleRelease
 ```
+
+`assembleRelease` signs the APK when `android/keystore.properties` is present. That file
+and `opengym-release.keystore` stay on your machine (both are gitignored). Keep both:
+an update signed with a different key will not install over the existing app. Copy the
+example if you are creating the key yourself:
+
+```sh
+cd frontend/android
+cp keystore.properties.example keystore.properties
+keytool -genkeypair -keystore opengym-release.keystore -alias opengym -keyalg RSA -keysize 2048 -validity 10950
+```
+
+Put the same password in `storePassword` and `keyPassword`. Android Studio's Java 21
+`keytool` is the one to use.
 
 ### iPhone — what's actually possible
 

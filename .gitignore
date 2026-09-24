@@ -7,6 +7,9 @@ data/
 
 # Local config
 .env
+frontend/android/keystore.properties
+frontend/android/*.keystore
+frontend/android/*.jks
 
 # Build output / deps
 frontend/dist/

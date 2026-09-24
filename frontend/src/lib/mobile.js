@@ -1,11 +1,11 @@
 // Mobile build (VITE_MOBILE=1) — the standalone app-store version (Capacitor native shell).
 //
-// There is no backend: nothing to sign in to, everything lives on the phone. Unlike guest
-// mode in a browser, this is the user's only copy of their training log, so it can't depend
-// on WebView localStorage alone (iOS evicts that under storage pressure). Every persist()
-// therefore also lands in a JSON file in the app's private data directory, and boot()
-// restores from it. The workout reminder uses native local notifications scheduled per
-// planned weekday — no server involved, unlike Web Push in the self-hosted version.
+// The phone's log is the file opengym-state.json. Unlike guest mode in a browser, it can't
+// depend on WebView localStorage alone (iOS evicts that under storage pressure). Every
+// persist() also lands in that file, and boot() restores from it. Sync to a self-hosted
+// server is optional (a pasted token); signing out or a failed upload never replaces the
+// file with an empty log. The workout reminder uses native local notifications scheduled
+// per planned weekday.
 //
 // Like the demo build, MOBILE is replaced at build time, so all of this folds away in
 // web bundles; the Capacitor plugins are only ever imported behind it.

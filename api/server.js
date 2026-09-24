@@ -40,6 +40,7 @@ let db = { users: [], creds: [], subs: [], invites: [] };
 try { db = JSON.parse(fs.readFileSync(dbFile, 'utf8')); } catch {}
 db.subs = db.subs || [];
 db.invites = db.invites || [];
+db.tokens = db.tokens || [];
 const isAdmin = user => !!user && (user.admin === true || ADMIN_UIDS.includes(user.id));
 function saveDb() { atomicWrite(dbFile, JSON.stringify(db, null, 2)); }
 function atomicWrite(file, content) {
@@ -188,6 +189,23 @@ function readSession(req) {
   if (!Number.isInteger(claimed) || claimed !== sessionVersion(user)) return null;
   return user;
 }
+// A phone cannot share the browser's cookie, so a signed-in session can mint a bearer
+// token. It only exists because someone already signed in with a passkey.
+function tokenHash(raw) {
+  return crypto.createHash('sha256').update(String(raw)).digest('hex');
+}
+function readBearer(req) {
+  const m = /^Bearer\s+(.+)$/i.exec(req.headers.authorization || '');
+  if (!m) return null;
+  const row = db.tokens.find(t => t.hash === tokenHash(m[1].trim()));
+  if (!row) return null;
+  const user = db.users.find(u => u.id === row.userId) || null;
+  if (!user || user.disabled) return null;
+  return user;
+}
+function readAuth(req) {
+  return readSession(req) || readBearer(req);
+}
 // Guard for /api/admin/* — resolves the caller and 401/403s if they aren't an admin.
 function requireAdmin(req, res) {
   const user = readSession(req);
@@ -319,6 +337,50 @@ const routes = {
     json(res, 200, { user: { id: user.id, name: user.name, admin: isAdmin(user) } }, { 'Set-Cookie': sessionCookie(user) });
   },
 
+  'POST /api/passkey/options': async (req, res) => {
+    const user = readSession(req);
+    if (!user) return json(res, 401, { error: 'not signed in' });
+    const mine = db.creds.filter(c => c.userId === user.id);
+    const options = await generateRegistrationOptions({
+      rpName: RP_NAME, rpID: RP_ID,
+      userID: Buffer.from(user.id), userName: user.name, userDisplayName: user.name,
+      attestationType: 'none',
+      authenticatorSelection: { residentKey: 'required', userVerification: 'preferred' },
+      excludeCredentials: mine.map(c => ({ id: c.id, transports: c.transports || [] }))
+    });
+    const cid = putChallenge({ challenge: options.challenge, uid: user.id, add: true });
+    json(res, 200, { cid, options });
+  },
+
+  'POST /api/passkey/verify': async (req, res) => {
+    const user = readSession(req);
+    if (!user) return json(res, 401, { error: 'not signed in' });
+    const body = await readBody(req);
+    const c = takeChallenge(body.cid);
+    if (!c || !c.add || c.uid !== user.id) return json(res, 400, { error: 'challenge expired — try again' });
+    let verification;
+    try {
+      verification = await verifyRegistrationResponse({
+        response: body.credential,
+        expectedChallenge: c.challenge,
+        expectedOrigin: ORIGIN,
+        expectedRPID: RP_ID,
+        requireUserVerification: false
+      });
+    } catch (e) { return json(res, 400, { error: 'verification failed: ' + e.message }); }
+    if (!verification.verified) return json(res, 400, { error: 'not verified' });
+    const { credential } = verification.registrationInfo;
+    if (db.creds.find(x => x.id === credential.id)) return json(res, 409, { error: 'credential already registered' });
+    db.creds.push({
+      id: credential.id, userId: user.id,
+      publicKey: Buffer.from(credential.publicKey).toString('base64url'),
+      counter: credential.counter || 0,
+      transports: body.credential?.response?.transports || []
+    });
+    saveDb();
+    json(res, 200, { ok: true });
+  },
+
   'POST /api/login/options': async (req, res) => {
     const options = await generateAuthenticationOptions({
       rpID: RP_ID, userVerification: 'preferred', allowCredentials: []
@@ -368,12 +430,22 @@ const routes = {
     const user = readSession(req);
     if (!user) return json(res, 401, { error: 'not signed in' });
     user.sv = sessionVersion(user) + 1;
+    db.tokens = db.tokens.filter(t => t.userId !== user.id);
     saveDb();
     json(res, 200, { ok: true }, { 'Set-Cookie': clearCookie });
   },
 
-  'GET /api/data': async (req, res) => {
+  'POST /api/sync-token': async (req, res) => {
     const user = readSession(req);
+    if (!user) return json(res, 401, { error: 'not signed in' });
+    const raw = crypto.randomBytes(32).toString('base64url');
+    db.tokens.push({ userId: user.id, hash: tokenHash(raw), created: new Date().toISOString() });
+    saveDb();
+    json(res, 200, { token: raw });
+  },
+
+  'GET /api/data': async (req, res) => {
+    const user = readAuth(req);
     if (!user) return json(res, 401, { error: 'not signed in' });
     try {
       const state = JSON.parse(fs.readFileSync(stateFile(user.id), 'utf8'));
@@ -382,7 +454,7 @@ const routes = {
   },
 
   'PUT /api/data': async (req, res) => {
-    const user = readSession(req);
+    const user = readAuth(req);
     if (!user) return json(res, 401, { error: 'not signed in' });
     const body = await readBody(req);
     if (!body.state || typeof body.state !== 'object') return json(res, 400, { error: 'state required' });
@@ -541,7 +613,21 @@ const routes = {
   }
 };
 
+// The sideloaded app calls the server from https://localhost or capacitor://localhost.
+// Reflect that origin only; a random site does not get credentialed access.
+function cors(req, res) {
+  const origin = req.headers.origin;
+  if (!origin) return;
+  const ok = origin === ORIGIN || origin === 'https://localhost' || origin === 'capacitor://localhost' || origin === 'http://localhost';
+  if (!ok) return;
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Vary', 'Origin');
+}
 http.createServer(async (req, res) => {
+  cors(req, res);
+  if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
   const url = new URL(req.url, 'http://x');
   const key = req.method + ' ' + url.pathname;
   const handler = routes[key];
