@@ -511,6 +511,8 @@ function ProgressionFields({ ex, mode, c, setC, routine, unit }) {
         step={mode === 'time' ? 5 : 1.25} decimal={mode !== 'time'} onChange={v => setC(x => ({ ...x, inc: v }))} />
       {active === 'double' && <Stepper label={t('Reps from')} value={c.repsMin || Math.max(1, (c.reps || 10) - 2)}
         step={1} decimal={false} onChange={v => setC(x => ({ ...x, repsMin: v }))} />}
+      {active === '531' && <Stepper label={t('Training max ({0})', unit)} value={c.tm > 0 ? c.tm : (c.weight || 0)}
+        step={inc} onChange={v => setC(x => ({ ...x, tm: v }))} />}
     </div>}
   </>
 }
@@ -551,6 +553,7 @@ function ExConfig({ ex, existing, onSave, onDelete, close, routine }) {
       const reps = perSide ? Math.ceil(typed / 2) * 2 : typed
       const out = { sets, mode: 'reps', reps, weight: Math.max(0, c.weight || 0), ...flags, ...(perSide ? { side: true } : {}), ...prog }
       if (policyFor({ ...c, id: ex.id }, routine, 'reps') === 'double') out.repsMin = Math.min(reps, Math.max(1, Math.round(c.repsMin) || Math.max(1, reps - 2)))
+      if (policyFor({ ...c, id: ex.id }, routine, 'reps') === '531' && c.tm > 0) out.tm = c.tm
       // A ceiling below the working reps would tell you to add a set on day one.
       if (bw && !(out.weight > 0) && c.repsMax > 0) out.repsMax = Math.max(reps, Math.round(c.repsMax))
       onSave(out)

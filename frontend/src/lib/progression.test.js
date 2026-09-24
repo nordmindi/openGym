@@ -488,4 +488,51 @@ describe('applyPrescription', () => {
   it('never shrinks a session that has already logged sets', () => {
     expect(applyPrescription(sets, { kind: 'up', weight: 60, sets: 1 })).toHaveLength(sets.length)
   })
+
+  it('gives each working set of a wave its own weight and leaves a warm-up alone', () => {
+    const sets = [{ w: 40, r: 5, warm: true, done: false }, { w: 60, r: 5, done: false }]
+    const out = applyPrescription(sets, { kind: 'hold', wave: [{ w: 65, r: 5 }, { w: 75, r: 5 }, { w: 85, r: 5 }] })
+    expect(out[0]).toEqual({ w: 40, r: 5, warm: true, done: false })
+    expect(out.slice(1).map(s => [s.w, s.r, s.goal])).toEqual([[65, 5, 5], [75, 5, 5], [85, 5, 5]])
+  })
+})
+
+describe('5/3/1', () => {
+  const cfg = { id: LIFT, sets: 3, reps: 5, weight: 80, prog: '531', tm: 100, inc: 2.5 }
+  const waveSession = (ok) => ({
+    id: LIFT,
+    sets: [
+      { w: 65, r: 5, goal: 5, done: true },
+      { w: 75, r: 5, goal: 5, done: true },
+      { w: 85, r: ok ? 5 : 3, goal: 5, done: true }
+    ]
+  })
+  it('opens on week 1 at 65/75/85 of the training max', () => {
+    const p = nextPrescription({ unit: 'kg', workouts: [] }, cfg, null)
+    expect(p.kind).not.toBe('first')
+    expect(p.wave.map(s => [s.w, s.r])).toEqual([[65, 5], [75, 5], [85, 5]])
+    expect(p.why[0]).toContain('Week {0} of 4')
+    expect(p.why[1]).toBe(1)
+  })
+  it('counts a short set in the wave as a miss', () => {
+    expect(readSession(waveSession(false)).ok).toBe(false)
+    expect(readSession(waveSession(true)).wave).toBe(true)
+  })
+  it('uses the light week on the fourth session', () => {
+    const workouts = [0, 1, 2].map(i => ({ d: '2026-01-0' + (i + 1), entries: [waveSession(true)] }))
+    const p = nextPrescription({ unit: 'kg', workouts }, cfg, null)
+    expect(p.kind).toBe('deload')
+    expect(p.wave.map(s => s.w)).toEqual([40, 50, 60])
+  })
+  it('raises the training max only after a heavy week that was hit', () => {
+    const four = (heavyOk) => [0, 1, 2, 3].map(i => ({
+      d: '2026-01-0' + (i + 1),
+      entries: [waveSession(i === 2 ? heavyOk : true)]
+    }))
+    const up = nextPrescription({ unit: 'kg', workouts: four(true) }, cfg, null)
+    expect(up.why[1]).toBe(1)
+    expect(up.wave[0].w).toBe(67.5)
+    const held = nextPrescription({ unit: 'kg', workouts: four(false) }, cfg, null)
+    expect(held.wave[0].w).toBe(65)
+  })
 })

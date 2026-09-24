@@ -18,12 +18,13 @@
 
 import { modeOf, repStep } from './history.js'
 import { EXIDX } from './exercises.js'
+import { best1RM } from './onerm.js'
 
-export const POLICIES = ['off', 'linear', 'greyskull', 'double', 'time']
+export const POLICIES = ['off', 'linear', 'greyskull', 'double', '531', 'time']
 
 // Which policies can sensibly drive which logging mode.
 export const POLICIES_FOR = {
-  reps: ['off', 'linear', 'greyskull', 'double'],
+  reps: ['off', 'linear', 'greyskull', 'double', '531'],
   time: ['off', 'time'],
   cardio: ['off']
 }
@@ -33,6 +34,7 @@ export const POLICY_NAME = {
   linear: 'Linear progression',
   greyskull: 'Greyskull LP',
   double: 'Double progression',
+  '531': '5/3/1',
   time: 'Add time'
 }
 export const POLICY_DESC = {
@@ -40,8 +42,18 @@ export const POLICY_DESC = {
   linear: 'Hit every rep in every set and the weight goes up. Repeated misses trigger a deload.',
   greyskull: 'Two straight sets plus a final set taken to failure. Beat the target on that set and the weight goes up — double if you double the reps. One failure resets 10 %.',
   double: 'Work up through a rep range at the same weight. Reach the top of the range in every set and the weight goes up, reps back to the bottom.',
-  time: 'Hold every set for the full duration and the target goes up.'
+  time: 'Hold every set for the full duration and the target goes up.',
+  '531': 'Three working sets at a percentage of your training max: a week of 5s, a week of 3s, a 5/3/1 week, then a light week. Hit the heavy week and the max goes up.'
 }
+
+// Wendler-style wave, as fractions of the training max and the reps that count as a hit.
+// The last set of the first three weeks is the one you may take past the target.
+const WAVE = [
+  [[0.65, 5], [0.75, 5], [0.85, 5]],
+  [[0.70, 3], [0.80, 3], [0.90, 3]],
+  [[0.75, 5], [0.85, 3], [0.95, 1]],
+  [[0.40, 5], [0.50, 5], [0.60, 5]]
+]
 
 // Sessions of repeated misses before a deload. Greyskull resets on the first failure by
 // design; the general linear policy gives you two more cracks at it first.
@@ -119,6 +131,20 @@ export function readSession(entry, fallback) {
   }
   const goal = target.reps || 0
   const reps = sets.map(s => (s.done ? (s.r || 0) : 0))
+  // A 5/3/1 set carries the reps it was supposed to hit. The session is a hit only when
+  // every one of those sets made its own number — the last set's AMRAP does not excuse
+  // a short set in front of it.
+  const waved = sets.some(s => s.goal > 0)
+  if (waved) {
+    return {
+      mode, goal, reps, wave: true,
+      weight: Math.max(0, ...sets.filter(s => s.done).map(s => s.w || 0)),
+      count: reps.length,
+      low: reps.length ? Math.min(...reps) : 0,
+      amrap: reps.length ? reps[reps.length - 1] : 0,
+      ok: sets.length > 0 && sets.every(s => s.done && (!s.goal || (s.r || 0) >= s.goal))
+    }
+  }
   return {
     mode, goal, reps,
     weight: Math.max(0, ...sets.filter(s => s.done).map(s => s.w || 0)),
@@ -163,6 +189,7 @@ export function nextPrescription(S, cfg, routine) {
   const unit = S.unit || 'kg'
   const inc = cfg.inc > 0 ? cfg.inc : (mode === 'time' ? DEFAULT_SEC_INCREMENT : defaultIncrement(cfg.id, unit))
   if (policy === 'off') return { policy, kind: 'off' }
+  if (policy === '531') return prescribe531(S, cfg, inc, unit)
 
   const sessions = sessionsFor(S, cfg.id, cfg).filter(s => s.mode === mode)
   const last = sessions[sessions.length - 1]
@@ -245,12 +272,60 @@ export function nextPrescription(S, cfg, routine) {
   return { policy, kind: 'hold', weight: w, why: ['Missed reps last time — same weight again ({0} of {1} to go).', deloadAt - stalls, deloadAt] }
 }
 
+// Training max, then the week of the wave. A completed cycle raises the max only when the
+// heavy week (the third session) was actually hit. Sessions that were not prescribed as a
+// wave do not move the calendar — switching the rule on does not inherit a random week.
+function prescribe531(S, cfg, inc, unit) {
+  const sessions = sessionsFor(S, cfg.id, cfg).filter(s => s.wave)
+  const week = sessions.length % 4
+  const cycles = Math.floor(sessions.length / 4)
+  let bumps = 0
+  for (let c = 0; c < cycles; c++) if (sessions[c * 4 + 2]?.ok) bumps++
+  let base = 0
+  if (cfg.tm > 0) base = snap(cfg.tm, inc)
+  else {
+    const est = best1RM(S, cfg.id)
+    if (est && est.est > 0) base = snap(est.est * 0.9, inc)
+    else if (cfg.weight > 0) base = snap(cfg.weight, inc)
+  }
+  if (!(base > 0)) return { policy: '531', kind: 'first', why: ['Nothing logged yet — this session sets the baseline.'] }
+  const tm = snap(base + bumps * inc, inc)
+  const steps = WAVE[week]
+  const wave = steps.map(([pct, reps]) => ({ w: snap(tm * pct, inc), r: reps }))
+  const pcts = steps.map(([pct]) => Math.round(pct * 100))
+  return {
+    policy: '531',
+    kind: week === 3 ? 'deload' : (bumps > 0 && week === 0 ? 'up' : 'hold'),
+    wave, sets: wave.length, tm,
+    why: ['Week {0} of 4 — {1}% / {2}% / {3}% of a {4} {5} training max.', week + 1, pcts[0], pcts[1], pcts[2], tm, unit]
+  }
+}
+
 /**
  * Apply a prescription to freshly built sets. Only the fields the policy actually decided
  * are touched, and only on sets that have not been logged yet.
  */
 export function applyPrescription(sets, p) {
   if (!p || p.kind === 'off' || p.kind === 'first') return sets
+  // Each working set of a wave gets its own weight and its own rep target. A short list
+  // grows to the three sets; warm-ups and anything already logged stay as they are.
+  if (p.wave && p.wave.length) {
+    const out = sets.map(s => ({ ...s }))
+    let k = 0
+    for (let i = 0; i < out.length; i++) {
+      if (out[i].done || out[i].warm) continue
+      const step = p.wave[Math.min(k, p.wave.length - 1)]
+      k++
+      out[i].w = step.w
+      out[i].r = step.r
+      out[i].goal = step.r
+    }
+    while (k < p.wave.length) {
+      const step = p.wave[k++]
+      out.push({ w: step.w, r: step.r, goal: step.r, done: false })
+    }
+    return out
+  }
   const out = sets.map(s => {
     if (s.done) return s
     const o = { ...s }
