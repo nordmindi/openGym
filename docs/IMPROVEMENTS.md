@@ -57,9 +57,9 @@ The phone keeps its own file and can optionally sync it to a self-hosted server.
 
 Do these only once sections 1–3 are boringly reliable.
 
-- [ ] Body measurements (waist, arms, …) next to body weight
-- [ ] Weekly review: what progressed, what stalled, which muscles were skipped
-- [ ] Exercise instructions in German and Portuguese (UI is translated; the upstream dataset is not)
+- [x] Body measurements (waist, arms, …) next to body weight
+- [x] Weekly review: what progressed, what stalled, which muscles were skipped
+- [x] Exercise instructions in German and Portuguese (UI is translated; the upstream dataset is not)
 
 ## Out of scope until the list above is done
 

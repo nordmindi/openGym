@@ -18,6 +18,7 @@ import { loadOfWorkouts } from './lib/muscles.js'
 import { parseImport, mergeImport, aliasesFromState, retargetImport } from './lib/import-csv.js'
 import { buildPlanBundle, parsePlan, mergePlan, printPlan } from './lib/plan-share.js'
 import { estimate1RM, best1RM, is1RMRecord, REP_CAP } from './lib/onerm.js'
+import { MEASURES, lengthUnit } from './lib/measures.js'
 import { nextPrescription, applyPrescription, policyFor, defaultIncrement, POLICIES_FOR, POLICY_NAME, POLICY_DESC, MAX_BW_SETS } from './lib/progression.js'
 import { MOBILE, shareExport } from './lib/mobile.js'
 
@@ -106,16 +107,33 @@ function WeightInput({ value, setValue, unit }) {
 function BwSheet({ required, onDone, close }) {
   const st = useStore(s => s.S)
   const unit = st.unit
+  const tape = lengthUnit(unit)
   const bw = lastBW(st)
+  const todayM = (st.measures || []).find(m => m.d === todayISO()) || {}
   const [v, setV] = useState(bw ? bw.w : 70)
+  const [tapeV, setTapeV] = useState(() => Object.fromEntries(MEASURES.map(([k]) => [k, todayM[k] ? String(todayM[k]) : ''])))
   const save = () => {
     const n = Math.round((v || 0) * 10) / 10
     if (!n || n <= 0) { toast(t('Enter a valid weight')); return }
+    const iso = todayISO()
+    const measured = {}
+    for (const [k] of MEASURES) {
+      const x = Math.round(Number(String(tapeV[k]).replace(',', '.')) * 10) / 10
+      if (x > 0) measured[k] = x
+    }
     update(s => {
-      const iso = todayISO()
       const ex = s.bodyweight.find(b => b.d === iso)
       if (ex) { ex.w = n; ex.t = Date.now() } else s.bodyweight.push({ d: iso, w: n, t: Date.now() })
       s.bodyweight.sort((a, b) => (a.d < b.d ? -1 : 1))
+      s.measures = s.measures || []
+      if (Object.keys(measured).length) {
+        const row = s.measures.find(m => m.d === iso)
+        if (row) {
+          for (const [k] of MEASURES) { if (measured[k]) row[k] = measured[k]; else delete row[k] }
+          row.t = Date.now()
+        } else s.measures.push({ d: iso, t: Date.now(), ...measured })
+        s.measures.sort((a, b) => (a.d < b.d ? -1 : 1))
+      }
     })
     close()
     if (onDone) onDone(n); else toast(t('Weight saved'))
@@ -126,6 +144,18 @@ function BwSheet({ required, onDone, close }) {
     <h3>{required ? t('Quick check-in') : t('Log body weight')}</h3>
     <div className="muted small">{required ? t('Slide or tap to set your weight — tracked before every workout so your curve stays honest.') : t('Today') + ', ' + fmtDate(todayISO(), true)}</div>
     <WeightInput value={v} setValue={setV} unit={unit} />
+    {!required && <>
+      <h4 className="sec">{t('Measurements')} <span className="dim" style={{ textTransform: 'none', letterSpacing: 0 }}>· {tape}</span></h4>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        {MEASURES.map(([k, label]) => (
+          <label key={k} className="small" style={{ display: 'grid', gap: 4 }}>
+            {t(label)}
+            <input className="field" inputMode="decimal" value={tapeV[k]} placeholder={tape}
+              onChange={e => setTapeV(s => ({ ...s, [k]: e.target.value }))} />
+          </label>
+        ))}
+      </div>
+    </>}
     <div style={{ height: 14 }} />
     <Button variant="primary" onClick={save}>{required ? t('Save & start workout') : t('Save')}</Button>
     {required && <>

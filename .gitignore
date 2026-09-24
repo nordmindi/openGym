@@ -23,3 +23,6 @@ node_modules/
 junit.xml
 coverage/
 frontend/bundle-size.json
+scripts/.instr-tr.json
+scripts/.instr-de-*.json
+scripts/.instr-pt-*.json

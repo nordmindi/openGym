@@ -5,6 +5,10 @@ import { effectiveRoutine, effectiveRoutineId, streakWeeks, lastBW, setsDoneActi
 import { fmtNum, fmtDate, todayISO, isoOf, weekKey, DAYS } from '../lib/format.js'
 import { t, dateLocale } from '../lib/i18n.js'
 import { bwSheet, goalSheet, dayOverrideSheet, calendarSheet, startFlow, loadStarterPlan, bwDeltaColor } from '../sheets.jsx'
+import { latestMeasures, MEASURES, lengthUnit } from '../lib/measures.js'
+import { weeklyReview } from '../lib/review.js'
+import { MUSCLE_NAME } from '../lib/muscles.js'
+import { EXIDX } from '../lib/exercises.js'
 import LineChart from '../components/LineChart.jsx'
 import Icon from '../components/Icon.jsx'
 import { Button } from '../components/ui.jsx'
@@ -41,6 +45,9 @@ export default function Home() {
   const wThisWeek = S.workouts.filter(w => weekKey(w.d) === weekKey(todayISO())).length
   const plannedPerWeek = Object.keys(S.week).filter(k => S.week[k]).length
   const bwPoints = S.bodyweight.slice(-30).map(b => ({ t: b.t || new Date(b.d).getTime(), y: b.w, d: b.d }))
+  const tape = latestMeasures(S.measures)
+  const tapeUnit = lengthUnit(S.unit)
+  const review = weeklyReview(S, todayISO())
 
   // today's session shown right under the week strip
   const onToday = () => { if (S.active) nav('/workout'); else if (routine) startFlow(routine.id); else dayOverrideSheet(todayISO()) }
@@ -113,6 +120,7 @@ export default function Home() {
           </div>
         )}
         <div className="chart" style={{ marginTop: 8 }}><LineChart points={bwPoints} h={130} unit={S.unit} goal={S.targetW} /></div>
+        {tape && <div className="small muted" style={{ marginTop: 8 }}>{MEASURES.filter(([k]) => tape[k]).map(([k, label]) => t(label) + ' ' + fmtNum(tape[k]) + ' ' + tapeUnit).join(' · ')}</div>}
       </> : <div className="muted small">{t("No entries yet — log your weight to start the curve. It's also asked before every workout.")}</div>}
     </div>
 
@@ -124,6 +132,11 @@ export default function Home() {
             {t('{0} week streak', streakWeeks(S))}
           </div>
           <div className="muted small" style={{ marginTop: 2 }}>{wThisWeek}{plannedPerWeek ? ' / ' + plannedPerWeek : ''} {t('this week')} · {t(S.workouts.length === 1 ? '{0} workout total' : '{0} workouts total', S.workouts.length)}</div>
+          {(review.progressed.length > 0 || review.stalled.length > 0 || review.skipped.length > 0) && <div className="small" style={{ marginTop: 6 }}>
+            {review.progressed.length > 0 && <div>{t('Up: {0}', review.progressed.slice(0, 3).map(x => (EXIDX[x.id] && EXIDX[x.id].n) || x.id).join(', '))}</div>}
+            {review.stalled.length > 0 && <div className="muted">{t('Same: {0}', review.stalled.slice(0, 3).map(x => (EXIDX[x.id] && EXIDX[x.id].n) || x.id).join(', '))}</div>}
+            {review.skipped.length > 0 && <div className="dim">{t('Skipped: {0}', review.skipped.slice(0, 4).map(m => t(MUSCLE_NAME[m])).join(', '))}</div>}
+          </div>}
         </div>
         <Icon name="calendar" className="chev" style={{ fontSize: 20 }} />
       </div>

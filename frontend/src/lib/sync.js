@@ -65,6 +65,7 @@ export function mergeLogs(local, remote) {
     ...newer,
     workouts: mergeByDay(L.workouts, R.workouts),
     bodyweight: mergeByDay(L.bodyweight, R.bodyweight),
+    measures: mergeByDay(L.measures, R.measures),
     routines: unionList(newer.routines, older.routines),
     customEx: unionList(newer.customEx, older.customEx),
     week: unionObj(newer.week, older.week),

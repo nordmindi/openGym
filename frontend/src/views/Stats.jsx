@@ -11,6 +11,7 @@ import Heatmap from '../components/Heatmap.jsx'
 import Icon from '../components/Icon.jsx'
 import BodyMap, { BodyMapLegend } from '../components/BodyMap.jsx'
 import { loadOfWorkouts, rankOf, MUSCLE_NAME } from '../lib/muscles.js'
+import { weeklyReview } from '../lib/review.js'
 import { e1rmSeries, best1RM } from '../lib/onerm.js'
 import {
   hasEffort, displayScale, scaleName, toScale, avgRir, effortSummary, effortWeeks,
@@ -20,6 +21,31 @@ import { Button, Segmented, SelectRow } from '../components/ui.jsx'
 
 // Which muscles the training in a window actually hit — and, the point of the card,
 // which ones it keeps missing. Shading is relative within the window (lib/muscles.js).
+function WeekReview({ S }) {
+  const r = weeklyReview(S, todayISO())
+  const name = id => (EXIDX[id] && EXIDX[id].n) || id
+  if (!r.progressed.length && !r.stalled.length && !r.skipped.length) return null
+  return <div className="card">
+    <h2 style={{ marginTop: 0 }}>{t('This week')}</h2>
+    {r.progressed.length > 0 && <>
+      <h4 className="sec">{t('Progressed')}</h4>
+      {r.progressed.map(x => <div key={x.id} className="row between small" style={{ padding: '6px 0' }}>
+        <span>{name(x.id)}</span><span className="accent">{fmtNum(x.then.w)} → {fmtNum(x.now.w)} {S.unit}</span>
+      </div>)}
+    </>}
+    {r.stalled.length > 0 && <>
+      <h4 className="sec">{t('Stalled')}</h4>
+      {r.stalled.map(x => <div key={x.id} className="row between small" style={{ padding: '6px 0' }}>
+        <span>{name(x.id)}</span><span className="muted">{fmtNum(x.now.w)} {S.unit}</span>
+      </div>)}
+    </>}
+    {r.skipped.length > 0 && <>
+      <h4 className="sec">{t('Skipped')}</h4>
+      <div className="mchips">{r.skipped.map(m => <span key={m} className="mchip miss">{t(MUSCLE_NAME[m])}</span>)}</div>
+    </>}
+  </div>
+}
+
 function MuscleBalance({ S }) {
   const [win, setWin] = useState(7)
   const [hard, setHard] = useState(false)
@@ -214,6 +240,7 @@ export default function Stats() {
       <Heatmap S={S} onDay={iso => { const ws = S.workouts.filter(w => w.d === iso); if (ws.length === 1) workoutDetailSheet(ws[0]); else if (ws.length) calendarSheet(iso) }} />
     </div>
 
+    {S.workouts.length > 0 && <WeekReview S={S} />}
     {S.workouts.length > 0 && <MuscleBalance S={S} />}
     {anyEffort && <EffortCard S={S} />}
 
