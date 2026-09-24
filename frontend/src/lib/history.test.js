@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { modeOf, isTimed, fmtSec, setLabel, defaultConfig, buildSets, exLine, workoutVolume, effortOf, stepEffort, capEffort, isBw, isPerSide, sideReps, repStep, sessionElapsedMs, toggleSessionPause, fillNextWeight } from './history.js'
+import { modeOf, isTimed, fmtSec, setLabel, defaultConfig, buildSets, exLine, workoutVolume, effortOf, stepEffort, capEffort, isBw, isPerSide, sideReps, repStep, sessionElapsedMs, toggleSessionPause, fillNextWeight, nextOpenSet } from './history.js'
 import { EXDB } from './exercises.js'
 
 // Real ids out of the shipped catalogue, so the body-part fallback is exercised for real.
@@ -425,6 +425,25 @@ describe('fillNextWeight', () => {
     fillNextWeight(sets, 0)
     expect(sets.map(s => s.w)).toEqual([75, 40, 75])
     expect(sets[1].warm).toBe(true)
+  })
+})
+
+describe('nextOpenSet', () => {
+  const sets = (...done) => done.map(d => ({ done: d }))
+  it('moves to the next set of the same exercise', () => {
+    const entries = [{ sets: sets(true, false, false) }]
+    expect(nextOpenSet(entries, [0], 0, 0)).toEqual({ idx: 0, set: 1 })
+  })
+  it('crosses to the partner before another set of the exercise just logged', () => {
+    const entries = [{ sets: sets(true, false) }, { sets: sets(false, false) }]
+    expect(nextOpenSet(entries, [0, 1], 0, 0)).toEqual({ idx: 1, set: 0 })
+  })
+  it('comes back for the next round after the partner', () => {
+    const entries = [{ sets: sets(true, false) }, { sets: sets(true, false) }]
+    expect(nextOpenSet(entries, [0, 1], 1, 0)).toEqual({ idx: 0, set: 1 })
+  })
+  it('is finished when every later set is already done', () => {
+    expect(nextOpenSet([{ sets: sets(true) }], [0], 0, 0)).toBeNull()
   })
 })
 

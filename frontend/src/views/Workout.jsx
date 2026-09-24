@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { exOr } from '../lib/exercises.js'
-import { effectiveRoutine, lastEntryFor, bestWeightFor, buildSets, setsDoneActive, supersetUnits, unitOf, setLabel, modeOf, isBw, isPerSide, sideReps, repStep, EFFORT, effortOf, stepEffort, capEffort, sessionElapsedMs, fillNextWeight, fmtSec } from '../lib/history.js'
+import { effectiveRoutine, lastEntryFor, bestWeightFor, buildSets, setsDoneActive, supersetUnits, unitOf, setLabel, modeOf, isBw, isPerSide, sideReps, repStep, EFFORT, effortOf, stepEffort, capEffort, sessionElapsedMs, fillNextWeight, fmtSec, nextOpenSet } from '../lib/history.js'
 import { fmtNum, fmtDate, todayISO, exCount, DAYN } from '../lib/format.js'
 import { beep, vibrate } from '../lib/sound.js'
 import { t } from '../lib/i18n.js'
@@ -141,8 +141,8 @@ function ExerciseBlock({ entryIdx, compact, onToggle, onField, onAddSet, onRemov
       value={entry.note || ''} onChange={e => onNote(e.target.value)} />
     <div className="card" style={{ marginTop: 10, marginBottom: 0 }}>
       {/* the header carries the same eff3 sizing as the rows, or the labels drift off their columns */}
-      <div className={'sethead' + (col3 ? ' eff3' : '')}><span className="n-sp" /><span className="w-sp">{col1.hd}</span>{col2 && <span className="r-sp">{col2.hd}</span>}{col3 && <span className="eff-sp">{col3.hd}</span>}{timed && <span className="ck-sp" />}<span className="ck-sp" /></div>
-      {entry.sets.map((s, i) => <div key={i} className={'setrow' + (s.done ? ' done' : '') + (s.warm ? ' warm' : '') + (col3 ? ' eff3' : '')}>
+      <div className={'sethead' + (col3 ? ' eff3' : '') + (timed ? ' timed' : '')}><span className="n-sp" /><span className="w-sp">{col1.hd}</span>{col2 && <span className="r-sp">{col2.hd}</span>}{col3 && <span className="eff-sp">{col3.hd}</span>}{timed && <span className="ck-sp" />}<span className="ck-sp" /></div>
+      {entry.sets.map((s, i) => <div key={i} data-setkey={entryIdx + '-' + i} className={'setrow' + (s.done ? ' done' : '') + (s.warm ? ' warm' : '') + (col3 ? ' eff3' : '') + (timed ? ' timed' : '')}>
         <button type="button" className="n" aria-label={s.warm ? t('Working set') : t('Warm-up')}
           onClick={() => onWarm(i)}>{s.warm ? 'W' : i + 1}</button>
         {cell(s, i, col1, 'w')}
@@ -184,6 +184,19 @@ function ActiveWorkout() {
   const done = setsDoneActive(A)
 
   const mutEntry = (idx, fn) => update(s => { fn(s.active.entries[idx]) }, true)
+  // The rest card and the work timer sit on top of the page. After a set, bring the next
+  // open field up to sit just above whichever bar is showing.
+  const revealSet = (idx, set) => {
+    setTimeout(() => {
+      const el = document.querySelector(`[data-setkey="${idx}-${set}"]`)
+      if (!el) return
+      const timer = document.getElementById('timer')
+      const limit = (timer ? timer.getBoundingClientRect().top : window.innerHeight - 100) - 12
+      const r = el.getBoundingClientRect()
+      if (r.bottom > limit) window.scrollBy({ top: r.bottom - limit, behavior: 'smooth' })
+      else if (r.top < 8) window.scrollBy({ top: r.top - 8, behavior: 'smooth' })
+    }, 260)
+  }
   // Clearing an optional field drops the key rather than storing null, so a set only carries
   // what was actually logged — in the session, in history and in a backup.
   const setField = (idx, i, field, v) => mutEntry(idx, e => {
@@ -223,6 +236,7 @@ function ActiveWorkout() {
   // behave exactly as they do for a reps set.
   const startTimed = (idx, i) => {
     const e = A.entries[idx]
+    revealSet(idx, i)
     useUI.getState().startWork(e.sets[i].sec || 45, exOr(e.id).n, elapsed => {
       mutEntry(idx, en => { en.sets[i].sec = elapsed })
       if (!useStore.getState().S.active.entries[idx].sets[i].done) toggle(idx, i)
@@ -233,21 +247,24 @@ function ActiveWorkout() {
     const m = modeAt(idx)
     const cardioEntry = m === 'cardio'
     const isLastUnit = unitIdx >= units.length - 1
-    let askTop = false, exJustDone = false, workoutDone = false
+    let askTop = false, exJustDone = false, workoutDone = false, logged = false
     mutEntry(idx, e => {
       e.sets[i].done = !e.sets[i].done
       if (e.sets[i].done) {
+        logged = true
         beep(S.sound, 1040, 0.12); vibrate(30)
         const isLastExInUnit = idx === unit[unit.length - 1]
         const unitDone = unit.every(ui => (ui === idx ? e : A.entries[ui]).sets.every(x => x.done))
         if (!e.sets[i].warm) fillNextWeight(e.sets, i)
         if (isLastExInUnit && !unitDone) {
-          const nxt = e.sets.slice(i + 1).find(s => !s.done)
-          const mode = modeOf({ ...(e.target || {}), id: e.id })
+          const open = nextOpenSet(A.entries, unit, idx, i)
+          const src = open ? A.entries[open.idx] : null
+          const nxt = src ? src.sets[open.set] : null
+          const mode = src ? modeOf({ ...(src.target || {}), id: src.id }) : null
           let cue = null
           if (nxt && mode === 'cardio') cue = (nxt.min || 0) + ' min'
           else if (nxt && mode === 'time') cue = fmtSec(nxt.sec || 0) + (nxt.w > 0 ? ' · ' + fmtNum(nxt.w) + ' ' + S.unit : '')
-          else if (nxt && isBw({ ...(e.target || {}), id: e.id }) && !(nxt.w > 0)) cue = String(nxt.r || 0)
+          else if (nxt && src && isBw({ ...(src.target || {}), id: src.id }) && !(nxt.w > 0)) cue = String(nxt.r || 0)
           else if (nxt) cue = fmtNum(nxt.w || 0) + ' ' + S.unit + ' × ' + (nxt.r || 0)
           startRest(S.restSec, cue)
         }
@@ -262,6 +279,11 @@ function ActiveWorkout() {
     })
     // reps: topWeight first (it chains into the finish/continue prompt on the last unit).
     // cardio/timed or already-confirmed: go straight to the prompt.
+    if (logged) {
+      const fresh = useStore.getState().S.active
+      const nxt = fresh && nextOpenSet(fresh.entries, unit, idx, i)
+      if (nxt) revealSet(nxt.idx, nxt.set)
+    }
     if (askTop) topWeightSheet(idx)
     else if (workoutDone) workoutCompleteSheet()
     else if (exJustDone && cardioEntry) useUI.getState().toast(t('Cardio logged'))

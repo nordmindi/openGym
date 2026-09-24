@@ -275,6 +275,22 @@ export function supersetUnits(items) {
 }
 export function unitOf(units, idx) { return units.find(u => u.includes(idx)) || [idx] }
 
+// The next field in this unit. A superset goes across the pair — set 1 of A, then set 1
+// of B — so the partner is next, not another set of the exercise just logged.
+export function nextOpenSet(entries, unit, fromIdx, fromSet) {
+  const max = Math.max(0, ...unit.map(ui => entries[ui]?.sets?.length || 0))
+  const order = []
+  for (let s = 0; s < max; s++) {
+    for (const ui of unit) if (entries[ui]?.sets?.[s]) order.push([ui, s])
+  }
+  const pos = order.findIndex(([ui, s]) => ui === fromIdx && s === fromSet)
+  if (pos < 0) return null
+  for (const [ui, s] of order.slice(pos + 1)) {
+    if (!entries[ui].sets[s].done) return { idx: ui, set: s }
+  }
+  return null
+}
+
 export function streakWeeks(S) {
   if (!S.workouts.length) return 0
   const weeks = new Set(S.workouts.map(w => weekKey(w.d)))

@@ -595,6 +595,10 @@ button.progline{background:none;border:0;padding:0;text-align:left;width:100%;cu
 .progline svg{flex:none;margin-top:2px}
 
 /* start a timed set (issue #16) — sits where you'd otherwise reach for the checkbox */
+/* a timed row adds a play button beside the checkbox. Same squeeze as the effort column,
+   or the check gets clipped off the card on a phone. */
+.setrow.timed,.sethead.timed{gap:6px}
+.setrow.timed .stp button{width:26px}
 .setrow .setgo{
   width:30px;height:30px;border-radius:50%;flex:none;
   display:flex;align-items:center;justify-content:center;
