@@ -429,6 +429,7 @@ export default {
   '{0} left over': '{0} बचा',
   'Note for this exercise': 'इस एक्सरसाइज़ के लिए नोट',
   'Warm-up': 'वार्म-अप',
+  'Next: {0}': 'अगला: {0}',
   'Working set': 'वर्किंग सेट',
   // --- mobile build ---
   'Your data': 'आपका डेटा',

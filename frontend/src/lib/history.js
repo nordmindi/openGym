@@ -211,6 +211,22 @@ export function buildSets(S, cfg) {
   }
   return sets
 }
+// The set you just logged is the weight you are actually using. Later sets that are still
+// sitting on the old planned number pick it up, so the rest screen is not asking you to
+// type it again. A set you already changed to something else, and a warm-up, stay put.
+export function fillNextWeight(sets, i) {
+  const cur = sets[i]
+  if (!cur || cur.warm || !(cur.w > 0)) return
+  const later = sets.slice(i + 1)
+  const next = later.find(s => !s.done && !s.warm)
+  if (!next || next.w === cur.w) return
+  const planned = next.w
+  for (const s of later) {
+    if (s.done || s.warm) continue
+    if (s.w !== planned) break
+    s.w = cur.w
+  }
+}
 export function workoutVolume(w) {
   let v = 0
   // No special case for unilateral work: a per-side set logs its total, so both sides are

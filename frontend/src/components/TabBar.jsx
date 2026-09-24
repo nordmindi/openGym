@@ -31,6 +31,8 @@ export default function TabBar({ onStart }) {
     if (!S.active) {
       const r = effectiveRoutine(S, todayISO())
       if (r && r.ex.length) { onStart(r.id); return }
+      nav('/workout')
+      return
     }
     // Coming back from another tab: Resume means the clock runs again.
     if (S.active.pausedAt) {

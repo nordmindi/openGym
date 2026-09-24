@@ -447,6 +447,7 @@ export default {
   '{0} left over': '{0} übrig',
   'Note for this exercise': 'Notiz zu dieser Übung',
   'Warm-up': 'Aufwärmen',
+  'Next: {0}': 'Als Nächstes: {0}',
   'Working set': 'Arbeitssatz',
   // --- mobile build ---
   'Your data': 'Deine Daten',

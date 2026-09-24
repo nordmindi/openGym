@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { modeOf, isTimed, fmtSec, setLabel, defaultConfig, buildSets, exLine, workoutVolume, effortOf, stepEffort, capEffort, isBw, isPerSide, sideReps, repStep, sessionElapsedMs, toggleSessionPause } from './history.js'
+import { modeOf, isTimed, fmtSec, setLabel, defaultConfig, buildSets, exLine, workoutVolume, effortOf, stepEffort, capEffort, isBw, isPerSide, sideReps, repStep, sessionElapsedMs, toggleSessionPause, fillNextWeight } from './history.js'
 import { EXDB } from './exercises.js'
 
 // Real ids out of the shipped catalogue, so the body-part fallback is exercised for real.
@@ -394,6 +394,37 @@ describe('workoutVolume', () => {
   it('leaves an unloaded bodyweight set at zero volume rather than inventing a number', () => {
     const w = { entries: [{ id: BW, target: { bodyweight: true }, sets: [{ w: 0, r: 20, done: true }] }] }
     expect(workoutVolume(w)).toBe(0)
+  })
+})
+
+describe('fillNextWeight', () => {
+  const row = (...ws) => ws.map(w => ({ w, r: 5, done: false }))
+  it('copies the set just logged onto later sets that are still on the planned weight', () => {
+    const sets = row(75, 70, 70)
+    sets[0].done = true
+    fillNextWeight(sets, 0)
+    expect(sets.map(s => s.w)).toEqual([75, 75, 75])
+  })
+  it('stops at a set that was already a different weight', () => {
+    const sets = row(75, 70, 80, 70)
+    sets[0].done = true
+    fillNextWeight(sets, 0)
+    expect(sets.map(s => s.w)).toEqual([75, 75, 80, 70])
+  })
+  it('does not copy a warm-up onto the working sets', () => {
+    const sets = row(40, 70, 70)
+    sets[0].warm = true
+    sets[0].done = true
+    fillNextWeight(sets, 0)
+    expect(sets.map(s => s.w)).toEqual([40, 70, 70])
+  })
+  it('leaves a later warm-up alone and keeps filling past it', () => {
+    const sets = row(75, 40, 70)
+    sets[0].done = true
+    sets[1].warm = true
+    fillNextWeight(sets, 0)
+    expect(sets.map(s => s.w)).toEqual([75, 40, 75])
+    expect(sets[1].warm).toBe(true)
   })
 })
 

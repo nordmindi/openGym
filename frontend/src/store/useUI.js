@@ -88,11 +88,11 @@ export const useUI = create((set, get) => ({
     toastTm = setTimeout(() => set({ toastMsg: '' }), 2200)
   },
 
-  startRest(sec) {
+  startRest(sec, cue) {
     get().stopRest()
     const endsAt = Date.now() + sec * 1000
     const held = !!useStore.getState().S.active?.pausedAt
-    set({ timer: { left: sec, total: sec, endsAt, held } })
+    set({ timer: { left: sec, total: sec, endsAt, held, cue: cue || null } })
     if (held) return
     pushRestTimer(sec)
     armRest()

@@ -429,6 +429,7 @@ export default {
   '{0} left over': 'Zostaje {0}',
   'Note for this exercise': 'Notatka do tego ćwiczenia',
   'Warm-up': 'Rozgrzewka',
+  'Next: {0}': 'Następne: {0}',
   'Working set': 'Seria robocza',
   // --- mobile build ---
   'Your data': 'Twoje dane',

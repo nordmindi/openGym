@@ -429,6 +429,7 @@ export default {
   '{0} left over': '{0} artıyor',
   'Note for this exercise': 'Bu egzersiz için not',
   'Warm-up': 'Isınma',
+  'Next: {0}': 'Sıradaki: {0}',
   'Working set': 'Çalışma seti',
   // --- mobile build ---
   'Your data': 'Verileriniz',

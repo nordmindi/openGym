@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { exOr } from '../lib/exercises.js'
-import { effectiveRoutine, lastEntryFor, bestWeightFor, buildSets, setsDoneActive, supersetUnits, unitOf, setLabel, modeOf, isBw, isPerSide, sideReps, repStep, EFFORT, effortOf, stepEffort, capEffort, sessionElapsedMs } from '../lib/history.js'
+import { effectiveRoutine, lastEntryFor, bestWeightFor, buildSets, setsDoneActive, supersetUnits, unitOf, setLabel, modeOf, isBw, isPerSide, sideReps, repStep, EFFORT, effortOf, stepEffort, capEffort, sessionElapsedMs, fillNextWeight, fmtSec } from '../lib/history.js'
 import { fmtNum, fmtDate, todayISO, exCount, DAYN } from '../lib/format.js'
 import { beep, vibrate } from '../lib/sound.js'
 import { t } from '../lib/i18n.js'
@@ -240,7 +240,17 @@ function ActiveWorkout() {
         beep(S.sound, 1040, 0.12); vibrate(30)
         const isLastExInUnit = idx === unit[unit.length - 1]
         const unitDone = unit.every(ui => (ui === idx ? e : A.entries[ui]).sets.every(x => x.done))
-        if (isLastExInUnit && !unitDone) startRest(S.restSec)
+        if (!e.sets[i].warm) fillNextWeight(e.sets, i)
+        if (isLastExInUnit && !unitDone) {
+          const nxt = e.sets.slice(i + 1).find(s => !s.done)
+          const mode = modeOf({ ...(e.target || {}), id: e.id })
+          let cue = null
+          if (nxt && mode === 'cardio') cue = (nxt.min || 0) + ' min'
+          else if (nxt && mode === 'time') cue = fmtSec(nxt.sec || 0) + (nxt.w > 0 ? ' · ' + fmtNum(nxt.w) + ' ' + S.unit : '')
+          else if (nxt && isBw({ ...(e.target || {}), id: e.id }) && !(nxt.w > 0)) cue = String(nxt.r || 0)
+          else if (nxt) cue = fmtNum(nxt.w || 0) + ' ' + S.unit + ' × ' + (nxt.r || 0)
+          startRest(S.restSec, cue)
+        }
         else if (unitDone) stopRest()
         if (unitDone && isLastUnit) workoutDone = true      // last exercise's last set → done
         // Only loaded reps training has a "working weight" worth confirming — a bodyweight

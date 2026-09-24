@@ -429,6 +429,7 @@ export default {
   '{0} left over': 'Остаток {0}',
   'Note for this exercise': 'Заметка к этому упражнению',
   'Warm-up': 'Разминка',
+  'Next: {0}': 'Дальше: {0}',
   'Working set': 'Рабочий подход',
   // --- mobile build ---
   'Your data': 'Ваши данные',

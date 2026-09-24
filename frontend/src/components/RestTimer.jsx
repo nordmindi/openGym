@@ -40,10 +40,11 @@ export default function RestTimer() {
   // order; Skip is pushed to the far edge, away from the button you tap to buy more time.
   return (
     <div id="timer" className="rest">
-      <div className="head">
+      <button type="button" className="clock" onClick={stopRest} aria-label={t('Skip')}>
         <div className="t">{clock(timer.left)}</div>
-        <div className="bar"><i style={{ width: pct + '%' }} /></div>
-      </div>
+        {timer.cue && <div className="next">{t('Next: {0}', timer.cue)}</div>}
+      </button>
+      <div className="bar"><i style={{ width: pct + '%' }} /></div>
       <div className="acts">
         <Button size="sm" icon="minus" onClick={() => addRest(-15)}>15s</Button>
         <Button size="sm" icon="plus" onClick={() => addRest(15)}>15s</Button>

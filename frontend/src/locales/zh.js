@@ -429,6 +429,7 @@ export default {
   '{0} left over': '还剩 {0}',
   'Note for this exercise': '这个动作的备注',
   'Warm-up': '热身',
+  'Next: {0}': '下一组：{0}',
   'Working set': '正式组',
   // --- mobile build ---
   'Your data': '你的数据',

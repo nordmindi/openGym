@@ -429,6 +429,7 @@ export default {
   '{0} left over': '{0} 남음',
   'Note for this exercise': '이 운동에 대한 메모',
   'Warm-up': '워밍업',
+  'Next: {0}': '다음: {0}',
   'Working set': '본세트',
   // --- mobile build ---
   'Your data': '내 데이터',
