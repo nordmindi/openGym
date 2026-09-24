@@ -7,7 +7,7 @@ import { lastEntryFor, bestWeightFor, buildSets, effectiveRoutineId, workoutVolu
 import { beep, vibrate } from './lib/sound.js'
 import { t, instrFor, getLang, INSTR_LANGS } from './lib/i18n.js'
 import { nav } from './lib/nav.js'
-import { starterRoutines } from './lib/starter.js'
+import { STARTER_PLANS } from './lib/starter.js'
 import Media, { Thumb } from './components/Media.jsx'
 import Stepper from './components/Stepper.jsx'
 import Icon from './components/Icon.jsx'
@@ -43,13 +43,32 @@ export function confirmSheet(opts) {
 }
 
 /* ============================ starter plan ============================ */
-export function loadStarterPlan() {
-  const [push, pull, legs] = starterRoutines()
+function applyStarter(key) {
+  const plan = STARTER_PLANS[key]
+  if (!plan) return
   update(st => {
-    st.routines.push(push, pull, legs)
-    st.week[1] = push.id; st.week[3] = pull.id; st.week[5] = legs.id
+    const routines = plan.routines()
+    st.routines.push(...routines)
+    plan.days.forEach(([d, i]) => { st.week[d] = routines[i].id })
   })
-  toast(t('Starter plan loaded — Mon Push · Wed Pull · Fri Legs'))
+  toast(t(plan.toast))
+}
+function StarterPick({ close }) {
+  return <>
+    <h3>{t('Choose a starter plan')}</h3>
+    <div className="list">
+      {Object.entries(STARTER_PLANS).map(([key, plan]) => (
+        <div key={key} className="item" onClick={() => { applyStarter(key); close() }}>
+          <span className="lrow-i"><Icon name="sparkles" /></span>
+          <div className="grow"><div className="tt">{t(plan.title)}</div><div className="ss">{t(plan.blurb)}</div></div>
+          <Icon name="chevronRight" className="chev" />
+        </div>
+      ))}
+    </div>
+  </>
+}
+export function loadStarterPlan() {
+  ui().openSheet(close => <StarterPick close={close} />)
 }
 
 /* ============================ weight picker (shared: body weight + goal) ============================ */

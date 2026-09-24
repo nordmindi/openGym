@@ -28,11 +28,11 @@ People stay for the workout screen.
 - [x] Plate calculator on the set (bar + plates for the working weight)
 - [x] Per-exercise notes, visible while the set is on screen
 - [x] Warm-up sets that do not count as the working set for progression or PRs
-- [ ] Rest timer readable at arm's length: big remaining time, one-tap complete, last weight already filled
-- [ ] Supersets and timed holds never hide the next field
-- [ ] Percentage / training-max programming (5/3/1-style) on the existing progression engine
-- [ ] Starter plans beyond PPL: upper/lower, full body, 5×5
-- [ ] Effort (RIR / RPE) can influence the next target, not only the charts
+- [x] Rest timer readable at arm's length: big remaining time, one-tap complete, last weight already filled
+- [x] Supersets and timed holds never hide the next field
+- [x] Percentage / training-max programming (5/3/1-style) on the existing progression engine
+- [x] Starter plans beyond PPL: upper/lower, full body, 5×5
+- [x] Effort (RIR / RPE) can influence the next target, not only the charts
 
 ## 3. One log on the phone and the server
 

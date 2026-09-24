@@ -151,8 +151,27 @@ export function readSession(entry, fallback) {
     count: reps.length,                                   // the dimension bodyweight work grows (#33)
     low: reps.length ? Math.min(...reps) : 0,
     amrap: reps.length ? reps[reps.length - 1] : 0,       // Greyskull's final set
+    effort: effortOfLast(sets),
     ok: goal > 0 && enough && reps.length > 0 && reps.every(r => r >= goal)
   }
+}
+
+// The last working set is the one that says how the weight felt. RIR 3+ (or RPE 7 or
+// below) still had reps left; RIR 0–1 (or RPE 9–10) was a grind. Anything in between,
+// or a set with no rating, leaves the policy alone.
+function effortOfLast(sets) {
+  const done = sets.filter(s => s.done)
+  const s = done[done.length - 1]
+  if (!s) return null
+  if (s.rir != null) return { kind: 'rir', v: s.rir }
+  if (s.rpe != null) return { kind: 'rpe', v: s.rpe }
+  return null
+}
+export function effortBand(effort) {
+  if (!effort) return null
+  if (effort.kind === 'rir') return effort.v >= 3 ? 'easy' : effort.v <= 1 ? 'hard' : null
+  if (effort.kind === 'rpe') return effort.v <= 7 ? 'easy' : effort.v >= 9 ? 'hard' : null
+  return null
 }
 
 /** Every past session for one exercise, oldest first. `fallback` — see readSession. */
@@ -238,6 +257,7 @@ export function nextPrescription(S, cfg, routine) {
   if (policy === 'double') {
     const top = cfg.reps || last.goal || 10
     const bottom = Math.min(cfg.repsMin || Math.max(1, top - 2), top)
+    if (last.ok && effortBand(last.effort) === 'hard') return { policy, kind: 'hold', weight: w, reps: top, why: ['Every rep, but the last set was a grind — same weight again.'] }
     if (last.ok) return { policy, kind: 'up', weight: snap(w + inc, inc), reps: bottom, why: ['Top of the rep range in every set — {0} {1} more, back to {2} reps.', inc, unit, bottom] }
     if (stalls >= deloadAt) {
       const dw = deloadTo(w, inc)
@@ -249,6 +269,10 @@ export function nextPrescription(S, cfg, routine) {
 
   // linear + greyskull
   if (last.ok) {
+    // A rating only steers linear. Greyskull already decides the jump from the AMRAP set.
+    const band = policy === 'linear' ? effortBand(last.effort) : null
+    if (band === 'easy') return { policy, kind: 'up', weight: snap(w + inc * 2, inc), why: ['Reps left in reserve — {0} {1} more.', inc * 2, unit] }
+    if (band === 'hard') return { policy, kind: 'hold', weight: w, why: ['Every rep, but the last set was a grind — same weight again.'] }
     // Greyskull's final set is taken to failure: double the target reps there and you have
     // earned a double jump.
     const dbl = policy === 'greyskull' && last.goal > 0 && last.amrap >= last.goal * 2

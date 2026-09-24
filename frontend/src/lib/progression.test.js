@@ -497,6 +497,28 @@ describe('applyPrescription', () => {
   })
 })
 
+describe('effort changes the next target', () => {
+  const cfg = { id: LIFT, sets: 3, reps: 5, weight: 60 }
+  const rated = (field, v) => {
+    const S = hist(LIFT, [[60, 5, 5, 5]])
+    S.workouts[0].entries[0].sets[2][field] = v
+    return nextPrescription(S, cfg, null)
+  }
+  it('takes a double step when the last set still had reps in reserve', () => {
+    const p = rated('rir', 4)
+    expect(p.kind).toBe('up')
+    expect(p.weight).toBe(65)
+  })
+  it('holds the weight when the reps were there but the set was a grind', () => {
+    const p = rated('rpe', 10)
+    expect(p.kind).toBe('hold')
+    expect(p.weight).toBe(60)
+  })
+  it('ignores a mid-scale rating and keeps the normal step', () => {
+    expect(rated('rir', 2).weight).toBe(62.5)
+  })
+})
+
 describe('5/3/1', () => {
   const cfg = { id: LIFT, sets: 3, reps: 5, weight: 80, prog: '531', tm: 100, inc: 2.5 }
   const waveSession = (ok) => ({
