@@ -72,6 +72,7 @@ export function mergeLogs(local, remote) {
     dayPlan: unionObj(newer.dayPlan, older.dayPlan),
     exWeights: unionObj(newer.exWeights, older.exWeights),
     exNotes: unionObj(newer.exNotes, older.exNotes),
+    machines: unionObj(newer.machines, older.machines),
     // A session in progress belongs to this device. The server never stores one.
     active: L.active || null,
     _ts: Date.now()

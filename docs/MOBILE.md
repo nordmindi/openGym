@@ -18,6 +18,11 @@ address and token on the phone. Newest edit wins per workout day, and a day is n
 deleted silently. Signing out and a failed sync leave the file in place. Backups go out
 through the OS share sheet instead of a browser download.
 
+The exercise picker can scan a machine. A QR code is read by the camera. A printed
+name is read on the device from a photo, and you can correct the text before it is
+matched. A code or name you confirm is remembered on this phone, so the next scan
+opens that exercise. The camera is optional: a device without one still installs.
+
 On Android, the system back button undoes the last thing on screen: it closes the top
 sheet, steps from a routine or Settings back to the screen that opened it, and from any
 other tab returns to Home. It leaves the app only from Home. A workout in progress keeps

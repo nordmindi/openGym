@@ -9,6 +9,7 @@ import { t, instrFor, getLang, INSTR_LANGS } from './lib/i18n.js'
 import { nav } from './lib/nav.js'
 import { STARTER_PLANS } from './lib/starter.js'
 import Media, { Thumb } from './components/Media.jsx'
+import MachineScan from './components/MachineScan.jsx'
 import Stepper from './components/Stepper.jsx'
 import Icon from './components/Icon.jsx'
 import { Button, Slider, Switch, Segmented, SelectRow, Row } from './components/ui.jsx'
@@ -512,6 +513,8 @@ function ExercisePicker({ onPick, close, libraryOnly }) {
     <h3>{libraryOnly ? t('Match to a library exercise') : t('Add exercise')}</h3>
     <div className="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
       <input className="input" placeholder={t('Search {0} exercises…', all.length)} value={q} onChange={e => { setQ(e.target.value); setShown(50) }} /></div>
+    <div style={{ height: 8 }} />
+    <Button icon="camera" onClick={() => ui().openSheet(closeScan => <MachineScan onPick={ex => { closeScan(); if (libraryOnly) close(); onPick(ex) }} />)}>{t('Scan a machine')}</Button>
     <div className="chips" style={{ margin: eqOpts.length > 1 ? '10px 0 6px' : '10px 0' }}>
       {chosenCount > 0 && <button className={'chip' + (bp === '★' ? ' on' : '')} onClick={() => { setBp('★'); setEq(''); setShown(50) }}><Icon name="starFill" style={{ fontSize: 12, display: 'inline-block', marginRight: 4, verticalAlign: '-1px' }} />{t('Chosen')} ({chosenCount})</button>}
       <button className={'chip nocap' + (!bp ? ' on' : '')} onClick={() => { setBp(''); setEq(''); setShown(50) }}>{t('All')}</button>

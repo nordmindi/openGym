@@ -45,5 +45,7 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>openGym uses the camera to read a machine code or the name printed on it.</string>
 </dict>
 </plist>

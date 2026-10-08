@@ -35,4 +35,11 @@ describe('mergeLogs', () => {
     expect(m.routines.map(r => r.id).sort()).toEqual(['r1', 'r2'])
     expect(m.active).toEqual({ id: 'now' })
   })
+  it('keeps a machine remembered on either side', () => {
+    const m = mergeLogs(
+      { _ts: 1, machines: { 'lat pulldown': '2330' } },
+      { _ts: 9, machines: { 'leg press': '0739' } },
+    )
+    expect(m.machines).toEqual({ 'lat pulldown': '2330', 'leg press': '0739' })
+  })
 })
