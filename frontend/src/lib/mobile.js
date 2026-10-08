@@ -66,3 +66,18 @@ export async function shareExport(json, filename) {
   const w = await Filesystem.writeFile({ path: filename, directory: Directory.Cache, data: json, encoding: Encoding.UTF8 })
   await Share.share({ title: filename, url: w.uri })
 }
+
+// Android only. Registering the listener replaces Capacitor's default, which finishes
+// the activity whenever the WebView has nothing to go back to — including while a sheet
+// is open. `onBack(exit)` decides; `exit` closes the app.
+export function bindHardwareBack(onBack) {
+  if (!MOBILE) return () => {}
+  let handle
+  let gone = false
+  import('@capacitor/app').then(async ({ App }) => {
+    const h = await App.addListener('backButton', () => onBack(() => App.exitApp()))
+    if (gone) h.remove()
+    else handle = h
+  }).catch(() => {})
+  return () => { gone = true; handle?.remove() }
+}

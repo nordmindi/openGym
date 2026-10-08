@@ -18,6 +18,11 @@ address and token on the phone. Newest edit wins per workout day, and a day is n
 deleted silently. Signing out and a failed sync leave the file in place. Backups go out
 through the OS share sheet instead of a browser download.
 
+On Android, the system back button undoes the last thing on screen: it closes the top
+sheet, steps from a routine or Settings back to the screen that opened it, and from any
+other tab returns to Home. It leaves the app only from Home. A workout in progress keeps
+running. A sheet that must be answered (the finish summary, a required weigh-in) stays up.
+
 ## Prerequisites
 
 - Node 20+
