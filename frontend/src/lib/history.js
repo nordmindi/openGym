@@ -142,6 +142,15 @@ export function cleanupSg(ex) {
   })
 }
 
+// Drop one exercise from the session in progress and keep the cursor on a row that still exists.
+export function removeSessionExercise(active, idx) {
+  if (!active || idx < 0 || idx >= (active.entries || []).length) return
+  active.entries.splice(idx, 1)
+  cleanupSg(active.entries)
+  if (active.cur > idx) active.cur -= 1
+  if (active.cur >= active.entries.length) active.cur = Math.max(0, active.entries.length - 1)
+}
+
 export function lastEntryFor(S, exId) {
   for (let i = S.workouts.length - 1; i >= 0; i--) {
     const en = S.workouts[i].entries.find(e => e.id === exId)

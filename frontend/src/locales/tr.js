@@ -622,4 +622,11 @@ export default {
   "Progressed": "İlerleyen",
   "Stalled": "Aynı kalan",
   "Skipped": "Atlanan",
+  "This workout": "Bu antrenman",
+  "Now": "Şimdi",
+  "Remove {0}": "{0} kaldır",
+  "Remove {0}?": "{0} kaldırılsın mı?",
+  "Remove": "Kaldır",
+  "The sets logged for it in this session will be lost.": "Bu seansta bu hareket için yazılan setler silinir.",
+  "Nothing in this workout yet.": "Bu antrenmanda henüz bir şey yok.",
 }

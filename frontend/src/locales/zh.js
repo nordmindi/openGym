@@ -622,4 +622,11 @@ export default {
   "Progressed": "有进步",
   "Stalled": "没变化",
   "Skipped": "没练到",
+  "This workout": "本次训练",
+  "Now": "当前",
+  "Remove {0}": "移除{0}",
+  "Remove {0}?": "移除{0}？",
+  "Remove": "移除",
+  "The sets logged for it in this session will be lost.": "这次训练里为它记下的组会丢失。",
+  "Nothing in this workout yet.": "这次训练里还没有动作。",
 }

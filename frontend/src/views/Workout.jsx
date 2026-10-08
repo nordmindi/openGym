@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useStore } from '../store/useStore.js'
 import { useUI } from '../store/useUI.js'
 import { exOr } from '../lib/exercises.js'
-import { effectiveRoutine, lastEntryFor, bestWeightFor, buildSets, setsDoneActive, supersetUnits, unitOf, setLabel, modeOf, isBw, isPerSide, sideReps, repStep, EFFORT, effortOf, stepEffort, capEffort, sessionElapsedMs, fillNextWeight, fmtSec, nextOpenSet } from '../lib/history.js'
+import { effectiveRoutine, lastEntryFor, bestWeightFor, buildSets, setsDoneActive, supersetUnits, unitOf, setLabel, modeOf, isBw, isPerSide, sideReps, repStep, EFFORT, effortOf, stepEffort, capEffort, sessionElapsedMs, fillNextWeight, fmtSec, nextOpenSet, removeSessionExercise } from '../lib/history.js'
 import { fmtNum, fmtDate, todayISO, exCount, DAYN } from '../lib/format.js'
 import { beep, vibrate } from '../lib/sound.js'
 import { t } from '../lib/i18n.js'
 import { api } from '../lib/api.js'
-import Media from '../components/Media.jsx'
+import Media, { Thumb } from '../components/Media.jsx'
 import { startFlow, exercisePicker, exConfigSheet, exerciseDetailSheet, topWeightSheet, finishWorkout, workoutCompleteSheet, confirmSheet } from '../sheets.jsx'
 import Icon from '../components/Icon.jsx'
 import { Button, Check, NumberField, TextArea } from '../components/ui.jsx'
@@ -164,6 +164,58 @@ function ExerciseBlock({ entryIdx, compact, onToggle, onField, onAddSet, onRemov
       weight={(entry.sets.find(s => !s.done) || entry.sets[entry.sets.length - 1])?.w || 0}
       unit={S.unit} bar={barWeightOf(S)}
       onBar={n => useStore.getState().update(s => { s.barWeight = n })} />}
+  </>
+}
+
+function appendSessionExercise(s, ex, cfg) {
+  if (!s.active) return
+  const routine = s.routines.find(r => r.id === s.active.routineId)
+  const full = { ...cfg, id: ex.id }
+  const plan = nextPrescription(s, full, routine)
+  const standing = (s.exNotes?.[ex.id] || {}).t || ''
+  s.active.entries.push({ id: ex.id, target: { ...cfg }, plan, sets: applyPrescription(buildSets(s, full), plan), ...(standing ? { note: standing } : {}) })
+  s.active.cur = s.active.entries.length - 1
+}
+
+function openAddExercise() {
+  const routine = useStore.getState().S.routines.find(r => r.id === useStore.getState().S.active?.routineId)
+  exercisePicker(ex => exConfigSheet(ex, null, cfg => useStore.getState().update(s => appendSessionExercise(s, ex, cfg)), null, routine))
+}
+
+/* ---------- the exercises in this session ---------- */
+function SessionList({ close }) {
+  const S = useStore(s => s.S)
+  const update = useStore(s => s.update)
+  const A = S.active
+  if (!A) return null
+  const units = supersetUnits(A.entries)
+  const cur = Math.min(A.cur || 0, Math.max(0, A.entries.length - 1))
+  const here = A.entries.length ? unitOf(units, cur) : []
+  const drop = idx => {
+    const entry = A.entries[idx]
+    const name = exOr(entry.id).n
+    const go = () => update(s => { if (s.active) removeSessionExercise(s.active, idx) })
+    if (entry.sets.some(s => s.done)) {
+      confirmSheet({ title: t('Remove {0}?', name), message: t('The sets logged for it in this session will be lost.'), confirmText: t('Remove'), danger: true, onConfirm: go })
+    } else go()
+  }
+  return <>
+    <h3>{t('This workout')}</h3>
+    {A.entries.length ? <div className="list">{A.entries.map((e, i) => {
+      const ex = exOr(e.id)
+      const done = e.sets.filter(s => s.done).length
+      const on = here.includes(i)
+      return <div key={i} className="item" onClick={() => { update(s => { if (s.active) s.active.cur = i }); close() }}>
+        <Thumb ex={ex} />
+        <div className="grow">
+          <div className="tt capitalize">{ex.n}{on ? ' · ' + t('Now') : ''}</div>
+          <div className="ss">{t('{0} sets', done + '/' + e.sets.length)}{e.sg ? ' · ' + t('Superset') : ''}</div>
+        </div>
+        <button className="iconbtn" aria-label={t('Remove {0}', ex.n)} style={{ color: 'var(--red)' }} onClick={ev => { ev.stopPropagation(); drop(i) }}><Icon name="trash" /></button>
+      </div>
+    })}</div> : <div className="muted small" style={{ margin: '8px 0 14px' }}>{t('Nothing in this workout yet.')}</div>}
+    <div style={{ height: 12 }} />
+    <Button icon="plus" onClick={openAddExercise}>{t('Add exercise')}</Button>
   </>
 }
 
@@ -325,8 +377,12 @@ function ActiveWorkout() {
     </div>
     <div className="wprog"><i style={{ width: (total ? done / total * 100 : 0) + '%' }} /></div>
 
+    <button type="button" className="row between" aria-label={t('This workout')} onClick={() => useUI.getState().openSheet(close => <SessionList close={close} />)}
+      style={{ width: '100%', background: 'none', border: 0, padding: '2px 0 8px', color: 'inherit', cursor: 'pointer' }}>
+      <span className="muted small">{A.entries.length ? (isSuperset ? t('Superset {0} / {1}', unitIdx + 1, units.length) : t('Exercise {0} / {1}', unitIdx + 1, units.length)) : t('This workout')}</span>
+      <Icon name="list" className="chev" />
+    </button>
     {A.entries.length ? <>
-      <div className="muted small" style={{ marginBottom: 6 }}>{isSuperset ? t('Superset {0} / {1}', unitIdx + 1, units.length) : t('Exercise {0} / {1}', unitIdx + 1, units.length)}</div>
       {isSuperset ? (
         <div className="ss-card">
           <div className="ss-hd"><Icon name="link" />{t('Superset · do these back-to-back, rest after both')}</div>
@@ -347,13 +403,7 @@ function ActiveWorkout() {
       <Button trailingIcon="chevronRight" disabled={unitIdx < 0 || unitIdx >= units.length - 1} onClick={() => update(s => { s.active.cur = units[unitIdx + 1][0] })}>{t('Next')}</Button>
     </div>
     <div style={{ height: 10 }} />
-    <Button onClick={() => exercisePicker(ex => exConfigSheet(ex, null, cfg => update(s => {
-      const full = { ...cfg, id: ex.id }
-      const plan = nextPrescription(s, full, s.routines.find(r => r.id === s.active.routineId))
-      const standing = (s.exNotes?.[ex.id] || {}).t || ''
-      s.active.entries.push({ id: ex.id, target: { ...cfg }, plan, sets: applyPrescription(buildSets(s, full), plan), ...(standing ? { note: standing } : {}) })
-      s.active.cur = s.active.entries.length - 1
-    }), null, S.routines.find(r => r.id === A.routineId)))} icon="plus">{t('Add exercise')}</Button>
+    <Button onClick={openAddExercise} icon="plus">{t('Add exercise')}</Button>
     <div style={{ height: 10 }} />
     {(() => {
       const exDone = A.entries.filter(e => e.sets.length && e.sets.every(s => s.done)).length

@@ -622,4 +622,11 @@ export default {
   "Progressed": "Progredito",
   "Stalled": "Fermo",
   "Skipped": "Saltato",
+  "This workout": "Questo allenamento",
+  "Now": "Ora",
+  "Remove {0}": "Rimuovi {0}",
+  "Remove {0}?": "Rimuovere {0}?",
+  "Remove": "Rimuovi",
+  "The sets logged for it in this session will be lost.": "Le serie registrate per questo esercizio in questa sessione andranno perse.",
+  "Nothing in this workout yet.": "Non c’è ancora niente in questo allenamento.",
 }

@@ -622,4 +622,11 @@ export default {
   "Progressed": "늘었다",
   "Stalled": "그대로다",
   "Skipped": "빠짐",
+  "This workout": "이번 운동",
+  "Now": "지금",
+  "Remove {0}": "{0} 빼기",
+  "Remove {0}?": "{0}을(를) 뺄까요?",
+  "Remove": "빼기",
+  "The sets logged for it in this session will be lost.": "이번 운동에서 이 동작에 기록한 세트는 사라집니다.",
+  "Nothing in this workout yet.": "이번 운동에 아직 동작이 없습니다.",
 }

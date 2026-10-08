@@ -622,4 +622,11 @@ export default {
   "Progressed": "Выросло",
   "Stalled": "Без сдвига",
   "Skipped": "Пропущено",
+  "This workout": "Эта тренировка",
+  "Now": "Сейчас",
+  "Remove {0}": "Убрать {0}",
+  "Remove {0}?": "Убрать {0}?",
+  "Remove": "Убрать",
+  "The sets logged for it in this session will be lost.": "Подходы, записанные для него в этой тренировке, пропадут.",
+  "Nothing in this workout yet.": "В этой тренировке пока ничего нет.",
 }

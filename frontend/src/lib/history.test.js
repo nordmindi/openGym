@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { modeOf, isTimed, fmtSec, setLabel, defaultConfig, buildSets, exLine, workoutVolume, effortOf, stepEffort, capEffort, isBw, isPerSide, sideReps, repStep, sessionElapsedMs, toggleSessionPause, fillNextWeight, nextOpenSet } from './history.js'
+import { modeOf, isTimed, fmtSec, setLabel, defaultConfig, buildSets, exLine, workoutVolume, effortOf, stepEffort, capEffort, isBw, isPerSide, sideReps, repStep, sessionElapsedMs, toggleSessionPause, fillNextWeight, nextOpenSet, removeSessionExercise } from './history.js'
 import { EXDB } from './exercises.js'
 
 // Real ids out of the shipped catalogue, so the body-part fallback is exercised for real.
@@ -463,5 +463,28 @@ describe('session pause', () => {
     expect(active.pausedAt).toBeNull()
     expect(active.pausedMs).toBe(11_000)
     expect(sessionElapsedMs(active, start + 20_000)).toBe(9_000)
+  })
+})
+
+describe('removeSessionExercise', () => {
+  const row = (id, sg) => ({ id, sg, sets: [{ done: false }] })
+  it('drops the exercise and keeps the cursor on the one that slid into its place', () => {
+    const active = { cur: 2, entries: [row('a'), row('b'), row('c')] }
+    removeSessionExercise(active, 1)
+    expect(active.entries.map(e => e.id)).toEqual(['a', 'c'])
+    expect(active.cur).toBe(1)
+  })
+  it('does not move the cursor when a later exercise is removed', () => {
+    const active = { cur: 0, entries: [row('a'), row('b')] }
+    removeSessionExercise(active, 1)
+    expect(active.cur).toBe(0)
+  })
+  it('clears a superset id that no longer has a partner', () => {
+    const active = { cur: 0, entries: [row('a', 'sg1'), row('b', 'sg1'), row('c', 'sg1')] }
+    removeSessionExercise(active, 1)
+    expect(active.entries[0].sg).toBe('sg1')
+    expect(active.entries[1].sg).toBe('sg1')
+    removeSessionExercise(active, 1)
+    expect(active.entries[0].sg).toBeUndefined()
   })
 })

@@ -622,4 +622,11 @@ export default {
   "Progressed": "आगे बढ़ा",
   "Stalled": "रुका रहा",
   "Skipped": "छूटा",
+  "This workout": "यह कसरत",
+  "Now": "अभी",
+  "Remove {0}": "{0} हटाएँ",
+  "Remove {0}?": "{0} हटाएँ?",
+  "Remove": "हटाएँ",
+  "The sets logged for it in this session will be lost.": "इस सत्र में इसके लिए दर्ज सेट मिट जाएँगे।",
+  "Nothing in this workout yet.": "इस कसरत में अभी कुछ नहीं है।",
 }
